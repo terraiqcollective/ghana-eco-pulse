@@ -15,9 +15,10 @@ function MapController({ bounds, zoomCommand }) {
     }, [bounds, map]);
 
     useEffect(() => {
-        if (zoomCommand === 'in') {
+        if (!zoomCommand) return;
+        if (zoomCommand.type === 'in') {
             map.zoomIn();
-        } else if (zoomCommand === 'out') {
+        } else if (zoomCommand.type === 'out') {
             map.zoomOut();
         }
     }, [zoomCommand, map]);

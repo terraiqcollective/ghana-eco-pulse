@@ -1,0 +1,7 @@
+{
+  "name": "Ghana Eco-Carbon & Mining Analytics",
+  "description": "A high-fidelity geospatial dashboard for monitoring forest carbon stocks and mining-induced deforestation in Ghana's Ashanti region, featuring real-time alerts and trend analysis.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

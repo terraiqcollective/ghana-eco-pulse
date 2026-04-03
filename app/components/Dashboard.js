@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import {
     Plus, Minus, Map as MapIcon, Menu,
     ChevronLeft, ChevronRight, BarChart3,
     AlertTriangle, X, Leaf, Tractor, RotateCcw,
-    Loader2
+    Loader2, Database
 } from 'lucide-react';
 
 import { TopHeader } from './TopHeader';
@@ -14,8 +14,81 @@ import { GlassPanel } from './GlassPanel';
 import { LegendPanel } from './LegendPanel';
 import { KPI } from './KPI';
 import { CarbonBalanceChart } from './SunburstChart';
-import { LayerSelector } from './LayerSelector';
 import { LossChart } from './LossChart';
+
+// ─── Data source metadata for each layer ────────────────────────────────────
+const LAYER_INFO = {
+    carbon: {
+        name: 'Carbon Stock',
+        source: 'Hansen GFC + Biomass Model',
+        sensor: 'Landsat 8',
+        resolution: '30m',
+        cadence: 'Annual',
+        dot: 'bg-emerald-500',
+    },
+    mining: {
+        name: 'Mining Loss',
+        source: 'Mining Activity Detection',
+        sensor: 'Sentinel-2',
+        resolution: '30m',
+        cadence: 'Annual',
+        dot: 'bg-red-500',
+    },
+    region: {
+        name: 'Region Boundary',
+        source: 'GADM Administrative Boundaries',
+        sensor: 'Vector',
+        resolution: 'Vector',
+        cadence: 'Static',
+        dot: 'bg-white/50',
+    },
+    district: {
+        name: 'District Boundary',
+        source: 'GADM Administrative Boundaries',
+        sensor: 'Vector',
+        resolution: 'Vector',
+        cadence: 'Static',
+        dot: 'bg-yellow-400',
+    },
+};
+
+// ─── Contextual insights derived from current metrics ───────────────────────
+function computeInsights(metrics, selectedYear, selectedRegion, selectedDistrict) {
+    const insights = [];
+    const { carbonStock, carbonLoss, prevCarbonLoss } = metrics;
+
+    if (prevCarbonLoss > 0 && carbonLoss > 0) {
+        const change = ((carbonLoss - prevCarbonLoss) / prevCarbonLoss) * 100;
+        if (Math.abs(change) > 3) {
+            insights.push({
+                type: change > 0 ? 'warning' : 'good',
+                text: change > 0
+                    ? `Mining loss rose ${change.toFixed(0)}% vs ${(selectedYear || 2024) - 1}`
+                    : `Loss fell ${Math.abs(change).toFixed(0)}% from ${(selectedYear || 2024) - 1}`,
+            });
+        } else {
+            insights.push({ type: 'neutral', text: `Loss held steady vs ${(selectedYear || 2024) - 1}` });
+        }
+    }
+
+    if (carbonStock > 0 && carbonLoss > 0) {
+        const ratio = (carbonLoss / carbonStock) * 100;
+        insights.push({
+            type: ratio > 1.5 ? 'warning' : 'good',
+            text: ratio > 1.5
+                ? `${ratio.toFixed(1)}% of forest stock lost to mining`
+                : `Loss is ${ratio.toFixed(2)}% of total forest stock`,
+        });
+    }
+
+    if (!selectedRegion) {
+        insights.push({ type: 'info', text: 'Select a region for district-level data' });
+    } else if (!selectedDistrict) {
+        insights.push({ type: 'info', text: `Showing all districts in ${selectedRegion}` });
+    }
+
+    return insights.slice(0, 3);
+}
 
 const MapComponent = dynamic(() => import('./Map'), {
     ssr: false,
@@ -35,7 +108,18 @@ export default function Dashboard() {
     const [isRightCollapsed, setIsRightCollapsed] = useState(false);
     const [isLegendOpen, setIsLegendOpen] = useState(true);
 
-    // Map Controls
+    // Mobile
+    const [isMobile, setIsMobile] = useState(false);
+    const [mobilePanel, setMobilePanel] = useState(null);
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 768);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+
+    // Map controls
     const [zoomCommand, setZoomCommand] = useState(null);
     const [basemap, setBasemap] = useState('dark');
     const [showBasemaps, setShowBasemaps] = useState(false);
@@ -51,12 +135,16 @@ export default function Dashboard() {
     // Data
     const [metrics, setMetrics] = useState({ carbonStock: 0, carbonLoss: 0, trend: [] });
 
-    // Loading states
+    // Compare mode
+    const [compareMode, setCompareMode] = useState(false);
+    const [compareYear, setCompareYear] = useState(null);
+    const [compareMetrics, setCompareMetrics] = useState(null);
+    const [loadingCompare, setLoadingCompare] = useState(false);
+
+    // Loading & errors
     const [loading, setLoading] = useState(true);
     const [loadingDistricts, setLoadingDistricts] = useState(false);
     const [loadingMetrics, setLoadingMetrics] = useState(false);
-
-    // Error states
     const [metadataError, setMetadataError] = useState(null);
     const [metricsError, setMetricsError] = useState(null);
     const [districtsError, setDistrictsError] = useState(null);
@@ -77,6 +165,13 @@ export default function Dashboard() {
         return { value: num.toFixed(0), suffix: '', unit: 'tonnes C' };
     };
 
+    const fmtNum = (val) => {
+        const num = parseFloat(val) || 0;
+        if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+        if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
+        return num.toFixed(0);
+    };
+
     const clearFilters = useCallback(() => {
         setSelectedRegion('');
         setSelectedDistrict('');
@@ -85,27 +180,30 @@ export default function Dashboard() {
 
     const hasFilters = selectedRegion !== '' || selectedDistrict !== '';
 
-    // Slider fill percentage
     const sliderFill = years.length > 1 && selectedYear
         ? ((selectedYear - years[0]) / (years[years.length - 1] - years[0])) * 100
         : 0;
 
-    // 1. Fetch Metadata
+    const insights = useMemo(
+        () => computeInsights(metrics, selectedYear, selectedRegion, selectedDistrict),
+        [metrics, selectedYear, selectedRegion, selectedDistrict]
+    );
+
+    // 1. Fetch metadata
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
                 setMetadataError(null);
                 const response = await fetch('/api/gee/metadata');
                 if (!response.ok) throw new Error('Failed to connect to Earth Engine. Check server credentials.');
-
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
-
                 setYears(data.years || []);
                 setRegions(data.regions || []);
-
                 if (data.years?.length > 0) {
-                    setSelectedYear(parseInt(data.years[data.years.length - 1]));
+                    const latest = parseInt(data.years[data.years.length - 1]);
+                    setSelectedYear(latest);
+                    setCompareYear(latest - 1);
                 }
             } catch (err) {
                 console.error('Metadata fetch error:', err);
@@ -114,11 +212,10 @@ export default function Dashboard() {
                 setLoading(false);
             }
         };
-
         fetchMetadata();
     }, []);
 
-    // 2. Fetch Districts
+    // 2. Fetch districts
     useEffect(() => {
         if (!selectedRegion) {
             setDistricts([]);
@@ -126,7 +223,6 @@ export default function Dashboard() {
             setDistrictsError(null);
             return;
         }
-
         const fetchDistricts = async () => {
             setLoadingDistricts(true);
             setDistrictsError(null);
@@ -136,12 +232,9 @@ export default function Dashboard() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ region: selectedRegion })
                 });
-
                 if (!response.ok) throw new Error('Failed to load districts');
-
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
-
                 setDistricts(data.districts || []);
                 setSelectedDistrict('');
             } catch (err) {
@@ -152,14 +245,12 @@ export default function Dashboard() {
                 setLoadingDistricts(false);
             }
         };
-
         fetchDistricts();
     }, [selectedRegion]);
 
-    // 3. Fetch Metrics
+    // 3. Fetch metrics
     useEffect(() => {
         if (!selectedYear) return;
-
         const fetchMetrics = async () => {
             setLoadingMetrics(true);
             setMetricsError(null);
@@ -167,19 +258,11 @@ export default function Dashboard() {
                 const response = await fetch('/api/gee/metrics', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        year: selectedYear,
-                        region: selectedRegion,
-                        district: selectedDistrict,
-                        years
-                    })
+                    body: JSON.stringify({ year: selectedYear, region: selectedRegion, district: selectedDistrict, years })
                 });
-
                 if (!response.ok) throw new Error('Failed to load metrics');
-
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
-
                 setMetrics(data);
             } catch (err) {
                 console.error('Metrics fetch error:', err);
@@ -188,42 +271,70 @@ export default function Dashboard() {
                 setLoadingMetrics(false);
             }
         };
-
         fetchMetrics();
     }, [selectedYear, selectedRegion, selectedDistrict, years]);
 
-    // Auto-enable region layer when a region is selected
+    // 4. Fetch compare metrics
+    useEffect(() => {
+        if (!compareMode || !compareYear || !selectedYear || compareYear === selectedYear) {
+            setCompareMetrics(null);
+            return;
+        }
+        const fetchCompare = async () => {
+            setLoadingCompare(true);
+            try {
+                const response = await fetch('/api/gee/metrics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ year: compareYear, region: selectedRegion, district: selectedDistrict, years })
+                });
+                if (!response.ok) throw new Error();
+                const data = await response.json();
+                if (data.error) throw new Error();
+                setCompareMetrics(data);
+            } catch {
+                setCompareMetrics(null);
+            } finally {
+                setLoadingCompare(false);
+            }
+        };
+        fetchCompare();
+    }, [compareMode, compareYear, selectedRegion, selectedDistrict, years]);
+
+    // Auto-enable region boundary layer
     useEffect(() => {
         if (selectedRegion && !selectedLayers.includes('region')) {
             setSelectedLayers(prev => [...prev, 'region']);
         }
     }, [selectedRegion]);
 
-    // Sync district layer with selection
+    // Sync district layer
     useEffect(() => {
         if (selectedDistrict) {
-            if (!selectedLayers.includes('district')) {
-                setSelectedLayers(prev => [...prev, 'district']);
-            }
+            if (!selectedLayers.includes('district')) setSelectedLayers(prev => [...prev, 'district']);
         } else {
             setSelectedLayers(prev => prev.filter(l => l !== 'district'));
         }
     }, [selectedDistrict]);
 
+    // ─── Initial loading screen ──────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="flex h-screen w-screen items-center justify-center bg-brand-deep text-brand-gold">
+            <div className="flex h-screen w-screen items-center justify-center bg-brand-deep">
                 <div className="text-center">
                     <div className="flex justify-center mb-5">
                         <Loader2 size={28} className="animate-spin text-brand-gold" />
                     </div>
-                    <div className="text-[13px] font-black uppercase tracking-widest mb-2">Initializing Earth Engine...</div>
-                    <div className="text-[9px] font-bold uppercase tracking-widest opacity-40">National Environmental Monitoring System</div>
+                    <div className="text-sm font-bold text-white mb-1.5">Connecting to Earth Engine</div>
+                    <div className="text-[9px] text-white/25 font-medium tracking-wider">
+                        Landsat 8 · Sentinel-2 · Hansen GFC · Ghana
+                    </div>
                 </div>
             </div>
         );
     }
 
+    // ─── Derived values ──────────────────────────────────────────────────────
     const stockFmt = formatMetric(metrics.carbonStock);
     const lossFmt = formatMetric(metrics.carbonLoss);
 
@@ -234,16 +345,76 @@ export default function Dashboard() {
         ? ((metrics.carbonLoss - metrics.prevCarbonLoss) / metrics.prevCarbonLoss) * 100
         : 0;
 
-    // System status for the footer
+    const stockDelta = compareMetrics?.carbonStock
+        ? ((metrics.carbonStock - compareMetrics.carbonStock) / compareMetrics.carbonStock) * 100
+        : null;
+    const lossDelta = compareMetrics?.carbonLoss
+        ? ((metrics.carbonLoss - compareMetrics.carbonLoss) / compareMetrics.carbonLoss) * 100
+        : null;
+
     const systemStatus = metricsError
-        ? { label: 'Data Error', dotClass: 'bg-red-500', textClass: 'text-red-400/70' }
+        ? { dotClass: 'bg-red-500' }
         : loadingMetrics
-            ? { label: 'Fetching Data', dotClass: 'bg-brand-gold animate-pulse', textClass: 'text-brand-gold/60' }
-            : { label: 'Network Active', dotClass: 'bg-emerald-500 animate-pulse', textClass: 'text-emerald-500/60' };
+            ? { dotClass: 'bg-brand-gold animate-pulse' }
+            : { dotClass: 'bg-emerald-500 animate-pulse' };
+
+    // ─── Panel class builders ────────────────────────────────────────────────
+    const leftPanelClass = [
+        'fixed md:absolute',
+        'inset-x-0 md:inset-x-auto md:left-0',
+        'bottom-14 md:bottom-0',
+        'md:top-16 md:w-80',
+        'z-40 md:z-30',
+        'max-h-[78vh] md:max-h-none',
+        'bg-brand-deep/95 md:bg-brand-deep/90 backdrop-blur-lg',
+        'border-t border-brand-gold/20 md:border-r md:border-t-0',
+        'rounded-t-2xl md:rounded-none',
+        'transition-all duration-500 flex flex-col',
+        mobilePanel === 'left'
+            ? 'translate-y-0 shadow-[0_-20px_50px_rgba(0,0,0,0.6)]'
+            : 'translate-y-full md:translate-y-0',
+        isLeftCollapsed
+            ? 'md:-translate-x-full md:shadow-none'
+            : 'md:translate-x-0 md:shadow-[20px_0_50px_rgba(0,0,0,0.6)]',
+    ].join(' ');
+
+    const rightPanelClass = [
+        'fixed md:absolute',
+        'inset-x-0 md:inset-x-auto md:right-0',
+        'bottom-14 md:bottom-0',
+        'md:top-16 md:w-80',
+        'z-40 md:z-30',
+        'max-h-[78vh] md:max-h-none',
+        'bg-brand-deep/95 md:bg-brand-deep/90 backdrop-blur-lg',
+        'border-t border-brand-gold/20 md:border-l md:border-t-0',
+        'rounded-t-2xl md:rounded-none',
+        'transition-all duration-500 flex flex-col',
+        mobilePanel === 'right'
+            ? 'translate-y-0 shadow-[0_-20px_50px_rgba(0,0,0,0.6)]'
+            : 'translate-y-full md:translate-y-0',
+        isRightCollapsed
+            ? 'md:translate-x-full md:shadow-none'
+            : 'md:translate-x-0 md:shadow-[-20px_0_50px_rgba(0,0,0,0.6)]',
+    ].join(' ');
+
+    // Insight chip styles
+    const insightStyle = {
+        warning: 'border-red-500/20 bg-red-500/5',
+        good:    'border-emerald-500/20 bg-emerald-500/5',
+        neutral: 'border-white/8 bg-white/3',
+        info:    'border-brand-gold/15 bg-brand-gold/4',
+    };
+    const insightDot = {
+        warning: 'bg-red-500',
+        good:    'bg-emerald-500',
+        neutral: 'bg-white/30',
+        info:    'bg-brand-gold',
+    };
 
     return (
         <div className="relative h-screen w-screen bg-brand-deep overflow-hidden text-white selection:bg-brand-gold/30">
-            {/* Full Screen Map */}
+
+            {/* Full-screen map */}
             <div className="absolute inset-0 z-0 bg-brand-deep">
                 <MapComponent
                     year={selectedYear}
@@ -255,7 +426,7 @@ export default function Dashboard() {
                 />
             </div>
 
-            {/* Top Header */}
+            {/* Header */}
             <div className="absolute top-0 left-0 right-0 z-40" style={{ height: '64px' }}>
                 <TopHeader
                     selectedYear={selectedYear}
@@ -264,32 +435,43 @@ export default function Dashboard() {
                 />
             </div>
 
-            {/* LEFT PANEL */}
-            <div
-                className={`absolute left-0 bottom-0 z-30 bg-brand-deep/90 backdrop-blur-lg border-r border-brand-gold/20 transition-all duration-500 flex flex-col ${isLeftCollapsed ? '-translate-x-full shadow-none' : 'translate-x-0 shadow-[20px_0_50px_rgba(0,0,0,0.6)]'}`}
-                style={{ top: '64px', width: '320px' }}
-            >
-                <div className="flex-1 p-5 overflow-y-auto space-y-6 custom-scrollbar flex flex-col">
+            {/* Mobile backdrop */}
+            {mobilePanel !== null && (
+                <div
+                    className="fixed inset-0 z-30 bg-black/50 md:hidden"
+                    onClick={() => setMobilePanel(null)}
+                />
+            )}
 
-                    {/* Panel Header */}
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-brand-gold text-[10px] font-black uppercase tracking-[0.25em]">
-                            Analysis Inputs
-                        </h2>
+            {/* ══════════════════════════════ LEFT PANEL ══════════════════════════════ */}
+            <div className={leftPanelClass}>
+                {/* Mobile drag handle */}
+                <div className="flex justify-center pt-2.5 pb-0.5 md:hidden shrink-0">
+                    <div className="w-10 h-1 rounded-full bg-white/20" />
+                </div>
+
+                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-5">
+
+                    {/* Header */}
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h2 className="text-white text-sm font-bold leading-none">Filter & Explore</h2>
+                            <p className="text-[9px] text-white/25 mt-1 font-medium">Ghana forest carbon data</p>
+                        </div>
                         <button
-                            onClick={() => setIsLeftCollapsed(true)}
-                            className="p-1.5 hover:bg-brand-gold/10 text-brand-gold border border-brand-gold/20 rounded transition-colors cursor-pointer"
+                            onClick={() => isMobile ? setMobilePanel(null) : setIsLeftCollapsed(true)}
+                            className="p-1.5 hover:bg-brand-gold/10 text-brand-gold/50 hover:text-brand-gold border border-brand-gold/20 rounded transition-colors cursor-pointer shrink-0"
                         >
-                            <ChevronLeft size={18} />
+                            <ChevronLeft size={16} />
                         </button>
                     </div>
 
-                    {/* Metadata Error Banner */}
+                    {/* Connection error */}
                     {metadataError && (
                         <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                             <AlertTriangle size={13} className="text-red-400 shrink-0 mt-0.5" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-red-400 mb-0.5">Connection Error</p>
+                                <p className="text-[9px] font-bold text-red-400 mb-0.5">Connection failed</p>
                                 <p className="text-[10px] text-red-300/70 leading-snug">{metadataError}</p>
                             </div>
                             <button onClick={() => setMetadataError(null)} className="shrink-0 text-red-400/50 hover:text-red-400 transition-colors">
@@ -298,33 +480,28 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {/* Filters */}
-                    <div className="flex flex-col gap-4">
+                    {/* ── Location ───────────────────────────────── */}
+                    <div className="flex flex-col gap-3">
+                        <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Location</span>
 
-                        {/* Region */}
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-[9px] font-black text-brand-faded/40 uppercase tracking-widest pl-1">
-                                Target Region
-                            </label>
+                            <label className="text-[10px] font-medium text-white/45 pl-0.5">Region</label>
                             <select
                                 value={selectedRegion}
                                 onChange={(e) => setSelectedRegion(e.target.value)}
                                 className="w-full bg-brand-deep/40 border border-brand-gold/20 rounded px-3 py-2 text-xs font-bold text-white outline-none focus:border-brand-gold/60 appearance-none cursor-pointer h-10 transition-colors"
                             >
                                 <option value="" className="bg-brand-deep">All Regions</option>
-                                {regions.map(r => (
-                                    <option key={r} value={r} className="bg-brand-deep">{r}</option>
-                                ))}
+                                {regions.map(r => <option key={r} value={r} className="bg-brand-deep">{r}</option>)}
                             </select>
-                            {/* Region boundary toggle — only shown when a region is selected */}
                             {selectedRegion && (
                                 <button
                                     onClick={() => toggleLayer('region')}
                                     className="flex items-center justify-between px-3 py-2 rounded border border-white/8 hover:border-white/15 bg-white/3 hover:bg-white/5 transition-all cursor-pointer"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="w-3.5 h-3.5 rounded-sm border-2 border-white/50 shrink-0" />
-                                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Region Boundary</span>
+                                        <div className="w-3.5 h-3.5 rounded-sm border-2 border-white/40 shrink-0" />
+                                        <span className="text-[9px] font-medium text-white/35">Show boundary</span>
                                     </div>
                                     <div className={`relative w-8 h-4 rounded-full transition-all duration-200 ${selectedLayers.includes('region') ? 'bg-white/25' : 'bg-white/8'}`}>
                                         <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all duration-200 ${selectedLayers.includes('region') ? 'right-0.5 bg-white' : 'left-0.5 bg-white/25'}`} />
@@ -333,15 +510,10 @@ export default function Dashboard() {
                             )}
                         </div>
 
-                        {/* District */}
                         <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center justify-between pl-1">
-                                <label className="text-[9px] font-black text-brand-faded/40 uppercase tracking-widest">
-                                    District Focus
-                                </label>
-                                {loadingDistricts && (
-                                    <Loader2 size={10} className="animate-spin text-brand-gold/50" />
-                                )}
+                            <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-medium text-white/45 pl-0.5">District</label>
+                                {loadingDistricts && <Loader2 size={10} className="animate-spin text-brand-gold/50" />}
                             </div>
                             <select
                                 value={selectedDistrict}
@@ -352,24 +524,21 @@ export default function Dashboard() {
                                 <option value="" className="bg-brand-deep">
                                     {!selectedRegion ? 'Select a region first' : 'All Districts'}
                                 </option>
-                                {districts.map(d => (
-                                    <option key={d} value={d} className="bg-brand-deep">{d}</option>
-                                ))}
+                                {districts.map(d => <option key={d} value={d} className="bg-brand-deep">{d}</option>)}
                             </select>
                             {districtsError && (
                                 <p className="text-[9px] text-red-400/70 pl-1 flex items-center gap-1">
                                     <AlertTriangle size={9} /> {districtsError}
                                 </p>
                             )}
-                            {/* District boundary toggle — only shown when a district is selected */}
                             {selectedDistrict && (
                                 <button
                                     onClick={() => toggleLayer('district')}
                                     className="flex items-center justify-between px-3 py-2 rounded border border-yellow-400/10 hover:border-yellow-400/20 bg-yellow-400/3 hover:bg-yellow-400/5 transition-all cursor-pointer"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="w-3.5 h-3.5 rounded-sm border-2 border-yellow-400/60 shrink-0" />
-                                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">District Boundary</span>
+                                        <div className="w-3.5 h-3.5 rounded-sm border-2 border-yellow-400/50 shrink-0" />
+                                        <span className="text-[9px] font-medium text-white/35">Show boundary</span>
                                     </div>
                                     <div className={`relative w-8 h-4 rounded-full transition-all duration-200 ${selectedLayers.includes('district') ? 'bg-yellow-400/30' : 'bg-yellow-400/10'}`}>
                                         <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all duration-200 ${selectedLayers.includes('district') ? 'right-0.5 bg-yellow-400' : 'left-0.5 bg-yellow-400/20'}`} />
@@ -378,82 +547,152 @@ export default function Dashboard() {
                             )}
                         </div>
 
-                        {/* Clear Filters */}
                         {hasFilters && (
                             <button
                                 onClick={clearFilters}
-                                className="flex items-center justify-center gap-1.5 py-2 text-[9px] font-black uppercase tracking-widest text-brand-gold/50 hover:text-brand-gold border border-brand-gold/10 hover:border-brand-gold/30 rounded transition-all"
+                                className="flex items-center justify-center gap-1.5 py-2 text-[9px] font-medium text-white/25 hover:text-white/50 border border-white/8 hover:border-white/15 rounded transition-all"
                             >
                                 <RotateCcw size={10} />
-                                Clear Filters
+                                Clear filters
                             </button>
                         )}
+                    </div>
 
-                        {/* Year Slider */}
-                        <div className="flex flex-col gap-3 pt-1">
-                            <div className="flex justify-between items-center px-1">
-                                <label className="text-[9px] font-black text-brand-faded/40 uppercase tracking-widest">
-                                    Temporal Range
-                                </label>
-                                <span className="text-[13px] font-black text-brand-gold tabular-nums tracking-widest">
-                                    {selectedYear}
-                                </span>
-                            </div>
-                            <div className="px-1">
-                                <input
-                                    type="range"
-                                    min={years[0] || 2015}
-                                    max={years[years.length - 1] || 2024}
-                                    step="1"
-                                    value={selectedYear || years[years.length - 1] || 2024}
-                                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                                    className="year-slider cursor-pointer"
-                                    style={{
-                                        background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${sliderFill}%, rgba(5,46,22,0.8) ${sliderFill}%, rgba(5,46,22,0.8) 100%)`
-                                    }}
-                                />
-                                {/* Year tick marks */}
-                                {years.length > 0 && (
-                                    <div className="flex justify-between mt-1 px-0">
-                                        {years.map((y) => (
-                                            <div key={y} className="flex flex-col items-center gap-0.5">
-                                                <div className={`w-px h-1.5 ${parseInt(y) === selectedYear ? 'bg-brand-gold/60' : 'bg-brand-faded/15'}`} />
-                                                <span className={`text-[7px] font-bold tabular-nums ${parseInt(y) === selectedYear ? 'text-brand-gold/70' : 'text-brand-faded/20'}`}>
-                                                    {String(y).slice(-2)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                    {/* ── Year ────────────────────────────────────── */}
+                    <div className="flex flex-col gap-2.5">
+                        <div className="flex items-baseline justify-between">
+                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Year</span>
+                            <span className="text-[15px] font-black text-brand-gold tabular-nums">{selectedYear}</span>
+                        </div>
+                        <div>
+                            <input
+                                type="range"
+                                min={years[0] || 2015}
+                                max={years[years.length - 1] || 2024}
+                                step="1"
+                                value={selectedYear || years[years.length - 1] || 2024}
+                                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                                className="year-slider cursor-pointer"
+                                style={{
+                                    background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${sliderFill}%, rgba(5,46,22,0.8) ${sliderFill}%, rgba(5,46,22,0.8) 100%)`
+                                }}
+                            />
+                            {years.length > 0 && (
+                                <div className="flex justify-between mt-1">
+                                    {years.map((y) => (
+                                        <div key={y} className="flex flex-col items-center gap-0.5">
+                                            <div className={`w-px h-1.5 ${parseInt(y) === selectedYear ? 'bg-brand-gold/60' : 'bg-brand-faded/15'}`} />
+                                            <span className={`text-[7px] font-bold tabular-nums ${parseInt(y) === selectedYear ? 'text-brand-gold/70' : 'text-brand-faded/20'}`}>
+                                                {String(y).slice(-2)}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <div className="h-px bg-brand-gold/10 w-full" />
-
-                    {/* Layer Selector */}
-                    <div className="flex flex-col gap-3">
-                        <h3 className="text-[9px] font-black text-brand-faded/40 uppercase tracking-widest pl-1">
-                            Data Layers
-                        </h3>
-                        <LayerSelector
-                            options={[
-                                { id: 'carbon', label: 'Carbon Stock' },
-                                { id: 'mining', label: 'Carbon Loss' },
-                            ]}
-                            selectedIds={selectedLayers}
-                            onChange={toggleLayer}
-                        />
+                    {/* ── Map Layers ──────────────────────────────── */}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Map Layers</span>
+                        {[
+                            { id: 'carbon', label: 'Carbon Stock', dot: 'bg-emerald-500' },
+                            { id: 'mining', label: 'Mining Loss',  dot: 'bg-red-500' },
+                        ].map(layer => (
+                            <button
+                                key={layer.id}
+                                onClick={() => toggleLayer(layer.id)}
+                                className={`flex items-center justify-between px-3 py-2.5 rounded border transition-all cursor-pointer ${selectedLayers.includes(layer.id) ? 'border-white/12 bg-white/4' : 'border-white/5 bg-transparent opacity-45'}`}
+                            >
+                                <div className="flex items-center gap-2.5">
+                                    <div className={`w-2 h-2 rounded-full shrink-0 ${layer.dot}`} />
+                                    <span className="text-[10px] font-semibold text-white/65">{layer.label}</span>
+                                </div>
+                                <div className={`relative w-8 h-4 rounded-full transition-all duration-200 ${selectedLayers.includes(layer.id) ? 'bg-white/20' : 'bg-white/8'}`}>
+                                    <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all duration-200 ${selectedLayers.includes(layer.id) ? 'right-0.5 bg-white' : 'left-0.5 bg-white/20'}`} />
+                                </div>
+                            </button>
+                        ))}
                     </div>
 
-                    {/* Legend Button */}
-                    <div className="pt-2 mt-auto">
+                    {/* ── Year Comparison (E) ─────────────────────── */}
+                    <div className="flex flex-col gap-2.5">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest block leading-none">Year Comparison</span>
+                                <p className="text-[9px] text-white/18 mt-1 leading-snug">Overlay a second year in the stats panel</p>
+                            </div>
+                            <button
+                                onClick={() => { setCompareMode(!compareMode); if (compareMode) setCompareMetrics(null); }}
+                                className={`relative shrink-0 w-9 h-5 rounded-full transition-all duration-200 ${compareMode ? 'bg-brand-gold' : 'bg-white/10'}`}
+                            >
+                                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${compareMode ? 'right-0.5' : 'left-0.5'}`} />
+                            </button>
+                        </div>
+                        {compareMode && (
+                            <select
+                                value={compareYear || ''}
+                                onChange={(e) => setCompareYear(parseInt(e.target.value))}
+                                className="w-full bg-brand-deep/40 border border-brand-gold/20 rounded px-3 py-2 text-xs font-bold text-white outline-none focus:border-brand-gold/60 appearance-none cursor-pointer h-10"
+                            >
+                                <option value="" className="bg-brand-deep">Choose comparison year</option>
+                                {years.filter(y => parseInt(y) !== selectedYear).map(y => (
+                                    <option key={y} value={y} className="bg-brand-deep">{y}</option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+
+                    {/* ── Quick Insights (A) ──────────────────────── */}
+                    {!loadingMetrics && (metrics.carbonStock > 0 || metrics.carbonLoss > 0) && (
+                        <div className="flex flex-col gap-2">
+                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Insights</span>
+                            {insights.map((insight, i) => (
+                                <div key={i} className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${insightStyle[insight.type]}`}>
+                                    <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${insightDot[insight.type]}`} />
+                                    <span className="text-[10px] font-medium text-white/55 leading-snug">{insight.text}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* ── Data Sources (B) ────────────────────────── */}
+                    {selectedLayers.filter(id => LAYER_INFO[id]).length > 0 && (
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-1.5">
+                                <Database size={9} className="text-white/20" />
+                                <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Data Sources</span>
+                            </div>
+                            {selectedLayers.filter(id => LAYER_INFO[id]).map(layerId => {
+                                const info = LAYER_INFO[layerId];
+                                return (
+                                    <div key={layerId} className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                                        <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${info.dot}`} />
+                                        <div className="flex flex-col gap-1.5 min-w-0">
+                                            <span className="text-[10px] font-semibold text-white/55 leading-none">{info.name}</span>
+                                            <span className="text-[9px] text-white/25 leading-snug">{info.source}</span>
+                                            <div className="flex gap-1 flex-wrap">
+                                                {[info.sensor, info.resolution, info.cadence].map((tag, i) => (
+                                                    <span key={i} className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 text-white/25">
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Legend toggle */}
+                    <div className="mt-auto pt-1">
                         <button
                             onClick={() => setIsLegendOpen(!isLegendOpen)}
-                            className={`w-full flex items-center justify-center gap-2 py-3 rounded border text-[10px] font-black uppercase tracking-[0.2em] transition-all cursor-pointer ${isLegendOpen
+                            className={`w-full flex items-center justify-center gap-2 py-3 rounded border text-[10px] font-bold transition-all cursor-pointer ${isLegendOpen
                                 ? 'bg-brand-gold text-brand-deep border-brand-gold'
-                                : 'bg-transparent border-brand-gold/40 text-brand-gold hover:bg-brand-gold/10'
-                                }`}
+                                : 'bg-transparent border-brand-gold/30 text-brand-gold/60 hover:bg-brand-gold/10 hover:border-brand-gold/50'
+                            }`}
                         >
                             {isLegendOpen ? 'Hide Legend' : 'Show Legend'}
                         </button>
@@ -461,39 +700,39 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* RIGHT PANEL */}
-            <div
-                className={`absolute right-0 bottom-0 z-30 bg-brand-deep/90 backdrop-blur-lg border-l border-brand-gold/20 transition-all duration-500 flex flex-col ${isRightCollapsed ? 'translate-x-full shadow-none' : 'translate-x-0 shadow-[-20px_0_50px_rgba(0,0,0,0.6)]'}`}
-                style={{ top: '64px', width: '320px' }}
-            >
-                <div className="flex-1 p-5 overflow-y-auto space-y-6 custom-scrollbar flex flex-col">
+            {/* ══════════════════════════════ RIGHT PANEL ═════════════════════════════ */}
+            <div className={rightPanelClass}>
+                {/* Mobile drag handle */}
+                <div className="flex justify-center pt-2.5 pb-0.5 md:hidden shrink-0">
+                    <div className="w-10 h-1 rounded-full bg-white/20" />
+                </div>
 
-                    {/* Panel Header */}
-                    <div className="flex justify-between items-center">
+                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-5">
+
+                    {/* Header */}
+                    <div className="flex justify-between items-start">
                         <button
-                            onClick={() => setIsRightCollapsed(true)}
-                            className="p-1.5 hover:bg-brand-gold/10 text-brand-gold border border-brand-gold/20 rounded transition-colors cursor-pointer"
+                            onClick={() => isMobile ? setMobilePanel(null) : setIsRightCollapsed(true)}
+                            className="p-1.5 hover:bg-brand-gold/10 text-brand-gold/50 hover:text-brand-gold border border-brand-gold/20 rounded transition-colors cursor-pointer shrink-0"
                         >
-                            <ChevronRight size={18} />
+                            <ChevronRight size={16} />
                         </button>
                         <div className="flex flex-col items-end gap-0.5">
-                            <h2 className="text-brand-gold text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
-                                Regional Output <BarChart3 size={14} />
+                            <h2 className="text-white text-sm font-bold flex items-center gap-2">
+                                Carbon Metrics <BarChart3 size={13} className="text-brand-gold/50" />
                             </h2>
-                            {(selectedRegion || selectedDistrict) && (
-                                <span className="text-[8px] font-bold text-brand-faded/40 uppercase tracking-widest">
-                                    {selectedDistrict || selectedRegion}
-                                </span>
-                            )}
+                            <p className="text-[9px] text-white/25 font-medium">
+                                {selectedDistrict || selectedRegion || 'Ghana · National'}
+                            </p>
                         </div>
                     </div>
 
-                    {/* Metrics Error Banner */}
+                    {/* Metrics error */}
                     {metricsError && (
                         <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                             <AlertTriangle size={13} className="text-red-400 shrink-0 mt-0.5" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-red-400 mb-0.5">Metrics Unavailable</p>
+                                <p className="text-[9px] font-bold text-red-400 mb-0.5">Metrics unavailable</p>
                                 <p className="text-[10px] text-red-300/70 leading-snug">{metricsError}</p>
                             </div>
                             <button onClick={() => setMetricsError(null)} className="shrink-0 text-red-400/50 hover:text-red-400 transition-colors">
@@ -502,16 +741,16 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {/* KPI Cards */}
+                    {/* KPI cards */}
                     <div className={`flex flex-col gap-3 transition-opacity duration-300 ${loadingMetrics ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                         {loadingMetrics && (
                             <div className="flex items-center justify-center gap-2 py-1">
                                 <Loader2 size={12} className="animate-spin text-brand-gold/50" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-brand-gold/40">Calculating...</span>
+                                <span className="text-[9px] font-medium text-brand-gold/40">Calculating...</span>
                             </div>
                         )}
                         <KPI
-                            label="Total Carbon Stock"
+                            label="Forest Carbon Stock"
                             value={stockFmt.value}
                             suffix={stockFmt.suffix}
                             unit={stockFmt.unit}
@@ -519,7 +758,7 @@ export default function Dashboard() {
                             icon={Leaf}
                         />
                         <KPI
-                            label="Carbon Loss from Mining"
+                            label="Mining-Driven Loss"
                             value={lossFmt.value}
                             suffix={lossFmt.suffix}
                             unit={lossFmt.unit}
@@ -529,22 +768,64 @@ export default function Dashboard() {
                         />
                     </div>
 
-                    <div className="h-px bg-brand-gold/10 w-full" />
+                    {/* Year comparison panel */}
+                    {compareMode && (
+                        <div className="rounded-xl border border-brand-gold/15 bg-brand-gold/[0.03] overflow-hidden">
+                            <div className="flex items-center justify-between px-3 py-2 border-b border-brand-gold/10">
+                                <span className="text-[9px] font-semibold text-brand-gold/40">
+                                    {selectedYear} vs {compareYear || '—'}
+                                </span>
+                                {loadingCompare && <Loader2 size={10} className="animate-spin text-brand-gold/40" />}
+                            </div>
+                            {compareMetrics ? (
+                                <div className="grid grid-cols-2 divide-x divide-brand-gold/10">
+                                    <div className="px-3 py-3 flex flex-col gap-1">
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                            <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Stock</span>
+                                        </div>
+                                        <span className="text-[11px] font-black text-white/75 tabular-nums">{fmtNum(metrics.carbonStock)}</span>
+                                        {stockDelta !== null && (
+                                            <span className={`text-[9px] font-bold tabular-nums ${stockDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {stockDelta >= 0 ? '+' : ''}{stockDelta.toFixed(1)}%
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="px-3 py-3 flex flex-col gap-1">
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
+                                            <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Loss</span>
+                                        </div>
+                                        <span className="text-[11px] font-black text-white/75 tabular-nums">{fmtNum(metrics.carbonLoss)}</span>
+                                        {lossDelta !== null && (
+                                            <span className={`text-[9px] font-bold tabular-nums ${lossDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {lossDelta >= 0 ? '+' : ''}{lossDelta.toFixed(1)}%
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="px-3 py-4 text-center text-[9px] text-white/20 font-medium">
+                                    {loadingCompare ? 'Loading...' : compareYear ? 'No data for selected year' : 'Pick a year in the Filters panel'}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                    {/* Trend Chart */}
+                    <div className="h-px bg-white/5 w-full" />
+
+                    {/* Loss trend */}
                     <div className="flex flex-col gap-3">
-                        <span className="text-[9px] font-black text-brand-faded/40 uppercase tracking-widest">
-                            Yearly Trend
-                        </span>
+                        <span className="text-[9px] font-semibold text-white/30">Loss Trend</span>
                         <LossChart data={metrics.trend} loading={loadingMetrics} />
                     </div>
 
-                    <div className="h-px bg-brand-gold/10 w-full" />
+                    <div className="h-px bg-white/5 w-full" />
 
-                    {/* Carbon Balance Chart */}
+                    {/* Carbon balance */}
                     <div className="flex flex-col gap-3 flex-1 min-h-0">
-                        <span className="text-[9px] font-black text-brand-faded/40 uppercase tracking-widest">
-                            Carbon Balance — {selectedYear}
+                        <span className="text-[9px] font-semibold text-white/30">
+                            Carbon Balance · {selectedYear}
                         </span>
                         <CarbonBalanceChart
                             carbonStock={metrics.carbonStock}
@@ -554,45 +835,41 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Status Bar */}
+                {/* Status bar */}
                 <div className="px-5 py-3 bg-brand-gold/5 border-t border-brand-gold/10 flex items-center justify-between shrink-0">
-                    <span className="text-[8px] font-black text-brand-gold/30 uppercase tracking-widest">
-                        {selectedYear || '—'} · {selectedRegion || 'All Regions'}
+                    <span className="text-[8px] font-medium text-white/20">
+                        {selectedRegion ? `${selectedDistrict || selectedRegion} · ${selectedYear}` : `Ghana · ${selectedYear}`}
                     </span>
                     <div className={`w-1.5 h-1.5 rounded-full ${systemStatus.dotClass}`} />
                 </div>
             </div>
 
-            {/* Collapsed Panel Reveal Buttons */}
+            {/* Desktop reveal buttons */}
             <button
                 onClick={() => setIsLeftCollapsed(false)}
-                className={`absolute top-20 left-4 z-30 p-3 bg-brand-deep/95 border border-brand-gold/40 text-brand-gold rounded shadow-2xl transition-all duration-300 cursor-pointer ${isLeftCollapsed ? 'translate-x-0 opacity-100 scale-100' : '-translate-x-20 opacity-0 pointer-events-none scale-90'}`}
-                title="Open Inputs"
+                className={`hidden md:block absolute top-20 left-4 z-30 p-3 bg-brand-deep/95 border border-brand-gold/40 text-brand-gold rounded shadow-2xl transition-all duration-300 cursor-pointer ${isLeftCollapsed ? 'translate-x-0 opacity-100 scale-100' : '-translate-x-20 opacity-0 pointer-events-none scale-90'}`}
+                title="Open Filters"
             >
                 <Menu size={20} />
             </button>
-
             <button
                 onClick={() => setIsRightCollapsed(false)}
-                className={`absolute top-20 right-4 z-30 p-3 bg-brand-deep/95 border border-brand-gold/40 text-brand-gold rounded shadow-2xl transition-all duration-300 cursor-pointer ${isRightCollapsed ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-20 opacity-0 pointer-events-none scale-90'}`}
-                title="Open Outputs"
+                className={`hidden md:block absolute top-20 right-4 z-30 p-3 bg-brand-deep/95 border border-brand-gold/40 text-brand-gold rounded shadow-2xl transition-all duration-300 cursor-pointer ${isRightCollapsed ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-20 opacity-0 pointer-events-none scale-90'}`}
+                title="Open Metrics"
             >
                 <BarChart3 size={20} />
             </button>
 
-            {/* Legend Panel */}
+            {/* Legend */}
             <LegendPanel
                 isOpen={isLegendOpen}
                 onClose={() => setIsLegendOpen(false)}
                 activeLayers={selectedLayers}
-                className={`absolute bottom-12 z-50 transition-all duration-500 ${isLeftCollapsed ? 'left-6' : 'left-[336px]'}`}
+                className={`fixed md:absolute z-50 transition-all duration-500 bottom-20 md:bottom-12 left-4 ${isLeftCollapsed ? 'md:left-6' : 'md:left-[336px]'}`}
             />
 
-            {/* Map Controls */}
-            <div
-                className={`absolute bottom-12 z-30 flex flex-col gap-3 items-end transition-all duration-500 ${isRightCollapsed ? 'right-6' : 'right-[336px]'}`}
-            >
-                {/* Basemap Menu */}
+            {/* Map controls — desktop only */}
+            <div className={`hidden md:flex absolute bottom-12 z-30 flex-col gap-3 items-end transition-all duration-500 ${isRightCollapsed ? 'right-6' : 'right-[336px]'}`}>
                 {showBasemaps && (
                     <div className="mb-1 animate-in fade-in slide-in-from-right-4 duration-200">
                         <GlassPanel className="flex flex-col p-1 shadow-2xl min-w-[140px] rounded-lg">
@@ -604,7 +881,7 @@ export default function Dashboard() {
                                 <button
                                     key={opt.id}
                                     onClick={() => { setBasemap(opt.id); setShowBasemaps(false); }}
-                                    className={`px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-left rounded transition-colors ${basemap === opt.id ? 'bg-brand-gold/20 text-brand-gold' : 'text-brand-faded hover:bg-white/5 hover:text-white'}`}
+                                    className={`px-3 py-2.5 text-[10px] font-semibold text-left rounded transition-colors ${basemap === opt.id ? 'bg-brand-gold/20 text-brand-gold' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
                                 >
                                     {opt.label}
                                 </button>
@@ -612,21 +889,12 @@ export default function Dashboard() {
                         </GlassPanel>
                     </div>
                 )}
-
                 <GlassPanel className="flex flex-col gap-1 p-1 shadow-2xl rounded-lg">
-                    <button
-                        onClick={() => setZoomCommand({ type: 'in', t: Date.now() })}
-                        className="p-2.5 text-brand-faded hover:text-white hover:bg-brand-gold/20 transition-all rounded cursor-pointer"
-                        title="Zoom In"
-                    >
+                    <button onClick={() => setZoomCommand({ type: 'in', t: Date.now() })} className="p-2.5 text-brand-faded hover:text-white hover:bg-brand-gold/20 transition-all rounded cursor-pointer" title="Zoom In">
                         <Plus size={18} />
                     </button>
                     <div className="h-px bg-brand-gold/10 mx-2" />
-                    <button
-                        onClick={() => setZoomCommand({ type: 'out', t: Date.now() })}
-                        className="p-2.5 text-brand-faded hover:text-white hover:bg-brand-gold/20 transition-all rounded cursor-pointer"
-                        title="Zoom Out"
-                    >
+                    <button onClick={() => setZoomCommand({ type: 'out', t: Date.now() })} className="p-2.5 text-brand-faded hover:text-white hover:bg-brand-gold/20 transition-all rounded cursor-pointer" title="Zoom Out">
                         <Minus size={18} />
                     </button>
                     <div className="h-px bg-brand-gold/10 mx-2" />
@@ -638,6 +906,25 @@ export default function Dashboard() {
                         <MapIcon size={18} />
                     </button>
                 </GlassPanel>
+            </div>
+
+            {/* Mobile bottom nav */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 h-14 bg-brand-deep/95 backdrop-blur-md border-t border-brand-gold/20 flex items-stretch md:hidden">
+                <button
+                    onClick={() => setMobilePanel(p => p === 'left' ? null : 'left')}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobilePanel === 'left' ? 'text-brand-gold' : 'text-white/25'}`}
+                >
+                    <Menu size={18} />
+                    <span className="text-[8px] font-semibold">Filters</span>
+                </button>
+                <div className="w-px bg-brand-gold/10 my-3" />
+                <button
+                    onClick={() => setMobilePanel(p => p === 'right' ? null : 'right')}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobilePanel === 'right' ? 'text-brand-gold' : 'text-white/25'}`}
+                >
+                    <BarChart3 size={18} />
+                    <span className="text-[8px] font-semibold">Metrics</span>
+                </button>
             </div>
         </div>
     );

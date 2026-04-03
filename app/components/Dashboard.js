@@ -33,7 +33,7 @@ export default function Dashboard() {
     // Layout
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
     const [isRightCollapsed, setIsRightCollapsed] = useState(false);
-    const [isLegendOpen, setIsLegendOpen] = useState(false);
+    const [isLegendOpen, setIsLegendOpen] = useState(true);
 
     // Map Controls
     const [zoomCommand, setZoomCommand] = useState(null);
@@ -412,10 +412,19 @@ export default function Dashboard() {
                                         background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${sliderFill}%, rgba(5,46,22,0.8) ${sliderFill}%, rgba(5,46,22,0.8) 100%)`
                                     }}
                                 />
-                                <div className="flex justify-between mt-1.5 px-0.5">
-                                    <span className="text-[8px] font-bold text-brand-faded/25">{years[0] || 2015}</span>
-                                    <span className="text-[8px] font-bold text-brand-faded/25">{years[years.length - 1] || 2024}</span>
-                                </div>
+                                {/* Year tick marks */}
+                                {years.length > 0 && (
+                                    <div className="flex justify-between mt-1 px-0">
+                                        {years.map((y) => (
+                                            <div key={y} className="flex flex-col items-center gap-0.5">
+                                                <div className={`w-px h-1.5 ${parseInt(y) === selectedYear ? 'bg-brand-gold/60' : 'bg-brand-faded/15'}`} />
+                                                <span className={`text-[7px] font-bold tabular-nums ${parseInt(y) === selectedYear ? 'text-brand-gold/70' : 'text-brand-faded/20'}`}>
+                                                    {String(y).slice(-2)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -533,7 +542,7 @@ export default function Dashboard() {
                     <div className="h-px bg-brand-gold/10 w-full" />
 
                     {/* Carbon Balance Chart */}
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3 flex-1 min-h-0">
                         <span className="text-[9px] font-black text-brand-faded/40 uppercase tracking-widest">
                             Carbon Balance — {selectedYear}
                         </span>

@@ -10,7 +10,7 @@ function MapController({ bounds, zoomCommand }) {
 
     useEffect(() => {
         if (bounds && bounds.length === 2) {
-            map.fitBounds(bounds);
+            map.flyToBounds(bounds, { duration: 1.5, easeLinearity: 0.25 });
         }
     }, [bounds, map]);
 

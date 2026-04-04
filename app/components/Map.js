@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // ─── Map controller: handles bounds fly-to, zoom commands, reset ─────────────
@@ -33,6 +34,7 @@ function MapController({ bounds, zoomCommand, mapCommand }) {
 // ─── Overview district layer (GeoJSON, shown before any selection) ────────────
 function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
     const map = useMap();
+    const tooltipRef = useRef(null);
 
     const defaultStyle = {
         color: 'rgba(255, 255, 255, 0.18)',
@@ -48,6 +50,13 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
         fillOpacity: 1,
     };
 
+    const closeTooltip = useCallback(() => {
+        if (tooltipRef.current) {
+            map.closeTooltip(tooltipRef.current);
+            tooltipRef.current = null;
+        }
+    }, [map]);
+
     const onEachFeature = useCallback((feature, layer) => {
         const districtName = feature.properties?.DISTRICTS
             || feature.properties?.District
@@ -57,23 +66,30 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
             || feature.properties?.Region
             || '';
 
-        layer.bindTooltip(districtName, {
-            permanent: false,
-            sticky: true,
-            direction: 'top',
-            className: 'eco-tooltip',
-            offset: [0, -4],
-        });
-
         layer.on({
             mouseover: (e) => {
+                closeTooltip();
+                tooltipRef.current = L.tooltip({
+                    sticky: true,
+                    direction: 'top',
+                    className: 'eco-tooltip',
+                    offset: [0, -4],
+                })
+                    .setContent(districtName)
+                    .setLatLng(e.latlng)
+                    .openOn(map);
                 e.target.setStyle(hoverStyle);
                 e.target.bringToFront();
             },
+            mousemove: (e) => {
+                if (tooltipRef.current) tooltipRef.current.setLatLng(e.latlng);
+            },
             mouseout: (e) => {
+                closeTooltip();
                 e.target.setStyle(defaultStyle);
             },
             click: (e) => {
+                closeTooltip();
                 map.flyToBounds(e.target.getBounds(), {
                     duration: 1.4,
                     easeLinearity: 0.25,
@@ -82,7 +98,7 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
                 onFeatureClick(districtName, regionName);
             },
         });
-    }, [map, onFeatureClick]);
+    }, [map, onFeatureClick, closeTooltip]);
 
     if (!geojson) return null;
 
@@ -99,6 +115,7 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
 // ─── Overview region layer (GeoJSON, always subtle, shown before any selection)
 function OverviewRegionsLayer({ geojson, onRegionClick }) {
     const map = useMap();
+    const tooltipRef = useRef(null);
 
     const defaultStyle = {
         color: 'rgba(255, 255, 255, 0.35)',
@@ -116,29 +133,43 @@ function OverviewRegionsLayer({ geojson, onRegionClick }) {
         dashArray: null,
     };
 
+    const closeTooltip = useCallback(() => {
+        if (tooltipRef.current) {
+            map.closeTooltip(tooltipRef.current);
+            tooltipRef.current = null;
+        }
+    }, [map]);
+
     const onEachFeature = useCallback((feature, layer) => {
         const regionName = feature.properties?.REGIONS
             || feature.properties?.Region
             || feature.properties?.NAME
             || 'Unknown Region';
 
-        layer.bindTooltip(regionName, {
-            permanent: false,
-            sticky: true,
-            direction: 'top',
-            className: 'eco-tooltip',
-            offset: [0, -4],
-        });
-
         layer.on({
             mouseover: (e) => {
+                closeTooltip();
+                tooltipRef.current = L.tooltip({
+                    sticky: true,
+                    direction: 'top',
+                    className: 'eco-tooltip',
+                    offset: [0, -4],
+                })
+                    .setContent(regionName)
+                    .setLatLng(e.latlng)
+                    .openOn(map);
                 e.target.setStyle(hoverStyle);
                 e.target.bringToFront();
             },
+            mousemove: (e) => {
+                if (tooltipRef.current) tooltipRef.current.setLatLng(e.latlng);
+            },
             mouseout: (e) => {
+                closeTooltip();
                 e.target.setStyle(defaultStyle);
             },
             click: (e) => {
+                closeTooltip();
                 map.flyToBounds(e.target.getBounds(), {
                     duration: 1.4,
                     easeLinearity: 0.25,
@@ -147,7 +178,7 @@ function OverviewRegionsLayer({ geojson, onRegionClick }) {
                 onRegionClick(regionName);
             },
         });
-    }, [map, onRegionClick]);
+    }, [map, onRegionClick, closeTooltip]);
 
     if (!geojson) return null;
 

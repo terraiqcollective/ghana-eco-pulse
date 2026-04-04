@@ -20,17 +20,17 @@ import { LossChart } from './LossChart';
 const LAYER_INFO = {
     carbon: {
         name: 'Carbon Stock',
-        source: 'Hansen GFC + Biomass Model',
-        sensor: 'Landsat 8',
-        resolution: '30m',
+        source: 'GEDI Mosaics + Google Satellite Embeddings',
+        sensor: 'GEDI',
+        resolution: '25m',
         cadence: 'Annual',
         dot: 'bg-emerald-500',
     },
     mining: {
         name: 'Mining Loss',
-        source: 'Mining Activity Detection',
-        sensor: 'Sentinel-2',
-        resolution: '30m',
+        source: 'Planet NICFI + U-Net Model',
+        sensor: 'Planet NICFI',
+        resolution: '4.77m',
         cadence: 'Annual',
         dot: 'bg-red-500',
     },

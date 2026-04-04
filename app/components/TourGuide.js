@@ -46,7 +46,7 @@ const STEPS = [
         target: 'tour-reset',
         title: 'Reset to Default',
         body: 'Clears all active filters, resets the year to the latest available, and flies the map back to the full Ghana view. Use this any time you want to start a fresh analysis.',
-        position: 'bottom',
+        position: 'right',
     },
 ];
 

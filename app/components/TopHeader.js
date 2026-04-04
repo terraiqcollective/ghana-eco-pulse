@@ -1,7 +1,7 @@
 import React from 'react';
-import { ShieldCheck, MapPin, Calendar, RotateCcw } from 'lucide-react';
+import { ShieldCheck, MapPin, Calendar, RotateCcw, HelpCircle } from 'lucide-react';
 
-export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset }) => {
+export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset, onTour }) => {
     const scopeLabel = selectedDistrict || selectedRegion || null;
 
     return (
@@ -49,6 +49,18 @@ export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onRe
                             </div>
                         )}
                     </div>
+                )}
+
+                {/* Help / tour button */}
+                {onTour && (
+                    <button
+                        onClick={onTour}
+                        title="Portal guide"
+                        className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-brand-gold/30 text-white/20 hover:text-brand-gold/70 transition-all duration-200"
+                    >
+                        <HelpCircle size={11} />
+                        <span className="text-[9px] font-semibold hidden sm:block">Guide</span>
+                    </button>
                 )}
 
                 {/* Reset button — always visible */}

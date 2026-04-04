@@ -12,6 +12,7 @@ import {
 import { TopHeader } from './TopHeader';
 import { GlassPanel } from './GlassPanel';
 import { LegendPanel } from './LegendPanel';
+import { TourGuide } from './TourGuide';
 import { KPI } from './KPI';
 import { CarbonBalanceChart } from './SunburstChart';
 import { LossChart } from './LossChart';
@@ -107,6 +108,7 @@ export default function Dashboard() {
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
     const [isRightCollapsed, setIsRightCollapsed] = useState(false);
     const [isLegendOpen, setIsLegendOpen] = useState(true);
+    const [tourTrigger, setTourTrigger] = useState(false);
 
     // Mobile
     const [isMobile, setIsMobile] = useState(false);
@@ -481,7 +483,7 @@ export default function Dashboard() {
         <div className="relative h-screen w-screen bg-brand-deep overflow-hidden text-white selection:bg-brand-gold/30">
 
             {/* Full-screen map */}
-            <div className="absolute inset-0 z-0 bg-brand-deep">
+            <div id="tour-map" className="absolute inset-0 z-0 bg-brand-deep">
                 <MapComponent
                     year={selectedYear}
                     region={selectedRegion}
@@ -503,6 +505,7 @@ export default function Dashboard() {
                     selectedRegion={selectedRegion}
                     selectedDistrict={selectedDistrict}
                     onReset={resetDashboard}
+                    onTour={() => { setTourTrigger(t => !t); }}
                 />
             </div>
 
@@ -515,7 +518,7 @@ export default function Dashboard() {
             )}
 
             {/* ══════════════════════════════ LEFT PANEL ══════════════════════════════ */}
-            <div className={leftPanelClass}>
+            <div id="tour-left-panel" className={leftPanelClass}>
                 {/* Mobile drag handle */}
                 <div className="flex justify-center pt-2.5 pb-0.5 md:hidden shrink-0">
                     <div className="w-10 h-1 rounded-full bg-white/20" />
@@ -635,7 +638,7 @@ export default function Dashboard() {
                             <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Year</span>
                             <span className="text-[15px] font-black text-brand-gold tabular-nums">{selectedYear}</span>
                         </div>
-                        <div>
+                        <div id="tour-year-slider">
                             <input
                                 type="range"
                                 min={years[0] || 2015}
@@ -664,7 +667,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* ── Map Layers ──────────────────────────────── */}
-                    <div className="flex flex-col gap-2">
+                    <div id="tour-map-layers" className="flex flex-col gap-2">
                         <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Map Layers</span>
                         {[
                             { id: 'carbon', label: 'Carbon Stock', dot: 'bg-emerald-500' },
@@ -687,7 +690,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* ── Year Comparison (E) ─────────────────────── */}
-                    <div className="flex flex-col gap-2.5">
+                    <div id="tour-year-comparison" className="flex flex-col gap-2.5">
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest block leading-none">Year Comparison</span>
@@ -760,6 +763,7 @@ export default function Dashboard() {
                     <div className="mt-auto pt-1 flex flex-col gap-2">
                         {/* Reset — always visible */}
                         <button
+                            id="tour-reset"
                             onClick={resetDashboard}
                             className="w-full flex items-center justify-center gap-2 py-2.5 rounded border border-white/8 hover:border-red-500/30 text-white/25 hover:text-red-400 text-[10px] font-semibold transition-all cursor-pointer group"
                         >
@@ -782,7 +786,7 @@ export default function Dashboard() {
             </div>
 
             {/* ══════════════════════════════ RIGHT PANEL ═════════════════════════════ */}
-            <div className={rightPanelClass}>
+            <div id="tour-right-panel" className={rightPanelClass}>
                 {/* Mobile drag handle */}
                 <div className="flex justify-center pt-2.5 pb-0.5 md:hidden shrink-0">
                     <div className="w-10 h-1 rounded-full bg-white/20" />
@@ -988,6 +992,9 @@ export default function Dashboard() {
                     </button>
                 </GlassPanel>
             </div>
+
+            {/* Tour guide — desktop only, auto-starts on first visit */}
+            <TourGuide autoStart={tourTrigger} />
 
             {/* Mobile bottom nav */}
             <div className="fixed bottom-0 left-0 right-0 z-50 h-14 bg-brand-deep/95 backdrop-blur-md border-t border-brand-gold/20 flex items-stretch md:hidden">

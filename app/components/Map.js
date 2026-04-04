@@ -6,8 +6,16 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Suppress Leaflet's broken default marker icon in Next.js/webpack
+// Replace with a transparent 1x1 gif so no external request or broken img is rendered
+const EMPTY_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({ iconUrl: null, shadowUrl: null });
+L.Icon.Default.mergeOptions({
+    iconUrl: EMPTY_GIF,
+    iconRetinaUrl: EMPTY_GIF,
+    shadowUrl: EMPTY_GIF,
+    iconSize: [0, 0],
+    shadowSize: [0, 0],
+});
 
 // ─── Map controller: handles bounds fly-to, zoom commands, reset ─────────────
 function MapController({ bounds, zoomCommand, mapCommand }) {

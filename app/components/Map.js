@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import { useEffect, useState, useCallback } from 'react';
+import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Helper to update map center/zoom and external zoom commands
-function MapController({ bounds, zoomCommand }) {
+// ─── Map controller: handles bounds fly-to, zoom commands, reset ─────────────
+function MapController({ bounds, zoomCommand, mapCommand }) {
     const map = useMap();
 
     useEffect(() => {
@@ -16,29 +16,178 @@ function MapController({ bounds, zoomCommand }) {
 
     useEffect(() => {
         if (!zoomCommand) return;
-        if (zoomCommand.type === 'in') {
-            map.zoomIn();
-        } else if (zoomCommand.type === 'out') {
-            map.zoomOut();
-        }
+        if (zoomCommand.type === 'in') map.zoomIn();
+        else if (zoomCommand.type === 'out') map.zoomOut();
     }, [zoomCommand, map]);
+
+    useEffect(() => {
+        if (!mapCommand) return;
+        if (mapCommand.type === 'reset') {
+            map.flyTo([7.5, -1.2], 7, { duration: 1.8, easeLinearity: 0.25 });
+        }
+    }, [mapCommand, map]);
 
     return null;
 }
 
-export default function MapComponent({ year, region, district, activeLayers = [], zoomCommand, basemap = 'dark' }) {
+// ─── Overview district layer (GeoJSON, shown before any selection) ────────────
+function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
+    const map = useMap();
+
+    const defaultStyle = {
+        color: 'rgba(255, 255, 255, 0.18)',
+        weight: 1,
+        fillColor: 'transparent',
+        fillOpacity: 0,
+    };
+
+    const hoverStyle = {
+        color: 'rgba(251, 191, 36, 0.7)',
+        weight: 1.5,
+        fillColor: 'rgba(251, 191, 36, 0.05)',
+        fillOpacity: 1,
+    };
+
+    const onEachFeature = useCallback((feature, layer) => {
+        const districtName = feature.properties?.DISTRICTS
+            || feature.properties?.District
+            || feature.properties?.NAME
+            || 'Unknown District';
+        const regionName = feature.properties?.REGIONS
+            || feature.properties?.Region
+            || '';
+
+        layer.bindTooltip(districtName, {
+            permanent: false,
+            sticky: true,
+            direction: 'top',
+            className: 'eco-tooltip',
+            offset: [0, -4],
+        });
+
+        layer.on({
+            mouseover: (e) => {
+                e.target.setStyle(hoverStyle);
+                e.target.bringToFront();
+            },
+            mouseout: (e) => {
+                e.target.setStyle(defaultStyle);
+            },
+            click: (e) => {
+                map.flyToBounds(e.target.getBounds(), {
+                    duration: 1.4,
+                    easeLinearity: 0.25,
+                    padding: [40, 40],
+                });
+                onFeatureClick(districtName, regionName);
+            },
+        });
+    }, [map, onFeatureClick]);
+
+    if (!geojson) return null;
+
+    return (
+        <GeoJSON
+            key="overview-districts"
+            data={geojson}
+            style={defaultStyle}
+            onEachFeature={onEachFeature}
+        />
+    );
+}
+
+// ─── Overview region layer (GeoJSON, always subtle, shown before any selection)
+function OverviewRegionsLayer({ geojson, onRegionClick }) {
+    const map = useMap();
+
+    const defaultStyle = {
+        color: 'rgba(255, 255, 255, 0.35)',
+        weight: 1.5,
+        fillColor: 'transparent',
+        fillOpacity: 0,
+        dashArray: '4 3',
+    };
+
+    const hoverStyle = {
+        color: 'rgba(255, 255, 255, 0.7)',
+        weight: 2,
+        fillColor: 'rgba(255, 255, 255, 0.03)',
+        fillOpacity: 1,
+        dashArray: null,
+    };
+
+    const onEachFeature = useCallback((feature, layer) => {
+        const regionName = feature.properties?.REGIONS
+            || feature.properties?.Region
+            || feature.properties?.NAME
+            || 'Unknown Region';
+
+        layer.bindTooltip(regionName, {
+            permanent: false,
+            sticky: true,
+            direction: 'top',
+            className: 'eco-tooltip',
+            offset: [0, -4],
+        });
+
+        layer.on({
+            mouseover: (e) => {
+                e.target.setStyle(hoverStyle);
+                e.target.bringToFront();
+            },
+            mouseout: (e) => {
+                e.target.setStyle(defaultStyle);
+            },
+            click: (e) => {
+                map.flyToBounds(e.target.getBounds(), {
+                    duration: 1.4,
+                    easeLinearity: 0.25,
+                    padding: [40, 40],
+                });
+                onRegionClick(regionName);
+            },
+        });
+    }, [map, onRegionClick]);
+
+    if (!geojson) return null;
+
+    return (
+        <GeoJSON
+            key="overview-regions"
+            data={geojson}
+            style={defaultStyle}
+            onEachFeature={onEachFeature}
+        />
+    );
+}
+
+// ─── Main map component ───────────────────────────────────────────────────────
+export default function MapComponent({
+    year,
+    region,
+    district,
+    activeLayers = [],
+    zoomCommand,
+    mapCommand,
+    basemap = 'dark',
+    boundaryGeoJSON = { districts: null, regions: null },
+    onDistrictClick,
+    onRegionClick,
+}) {
     const [layers, setLayers] = useState({ carbon: null, mining: null, region: null, district: null });
     const [prevLayers, setPrevLayers] = useState(null);
     const [fetchedFilters, setFetchedFilters] = useState({ year: null, region: null, district: null });
     const [bounds, setBounds] = useState(null);
     const [loading, setLoading] = useState(false);
 
+    // Show overview when no analysis selection is active
+    const showOverview = !region && !district;
+
     useEffect(() => {
         if (!year) return;
 
         const fetchLayers = async () => {
             setLoading(true);
-
             try {
                 const response = await fetch('/api/gee/layers', {
                     method: 'POST',
@@ -50,16 +199,14 @@ export default function MapComponent({ year, region, district, activeLayers = []
 
                 const data = await response.json();
 
-                // Transition: Move current layers to "prev" and set new ones
                 setPrevLayers(layers);
                 setLayers(data.layers);
                 setFetchedFilters({ year, region, district });
                 setBounds(data.bounds);
 
-                // Keep ghosts visible for 2 seconds to allow new tiles to resolve
                 setTimeout(() => setPrevLayers(null), 2000);
             } catch (err) {
-                console.error("Layer fetch error:", err);
+                console.error('Layer fetch error:', err);
             } finally {
                 setLoading(false);
             }
@@ -71,19 +218,33 @@ export default function MapComponent({ year, region, district, activeLayers = []
     return (
         <div className="h-full w-full relative">
             {loading && (
-                <div className="absolute top-20 right-4 z-[1000] glass-panel px-4 py-2 rounded shadow-lg text-brand-gold text-[10px] font-black uppercase tracking-widest animate-pulse">
-                    Refining Viewport...
+                <div className="absolute top-20 right-4 z-[1000] glass-panel px-4 py-2 rounded shadow-lg text-brand-gold text-[10px] font-semibold animate-pulse">
+                    Updating map...
                 </div>
             )}
             <MapContainer
-                center={[6.666, -1.616]}
+                center={[7.5, -1.2]}
                 zoom={7}
                 className="h-full w-full bg-brand-deep"
                 zoomControl={false}
             >
                 <BasemapLayer type={basemap} />
 
-                {/* Main Layers */}
+                {/* Overview GeoJSON layers — visible only when no analysis selection */}
+                {showOverview && boundaryGeoJSON.regions && (
+                    <OverviewRegionsLayer
+                        geojson={boundaryGeoJSON.regions}
+                        onRegionClick={onRegionClick}
+                    />
+                )}
+                {showOverview && boundaryGeoJSON.districts && (
+                    <OverviewDistrictsLayer
+                        geojson={boundaryGeoJSON.districts}
+                        onFeatureClick={onDistrictClick}
+                    />
+                )}
+
+                {/* Analysis raster layers */}
                 {layers.carbon && activeLayers.includes('carbon') && fetchedFilters.year === year && (
                     <TileLayer url={layers.carbon} opacity={0.7} zIndex={10} />
                 )}
@@ -97,22 +258,23 @@ export default function MapComponent({ year, region, district, activeLayers = []
                     <TileLayer url={layers.district} zIndex={40} />
                 )}
 
-                {/* Prev Layers for Cross-fade effect (Morphing) */}
+                {/* Ghost layers for cross-fade on transition */}
                 {prevLayers && (
-                    <div className="opacity-30 pointer-events-none transition-opacity duration-1000">
+                    <>
                         {prevLayers.carbon && activeLayers.includes('carbon') && <TileLayer url={prevLayers.carbon} opacity={0.3} zIndex={9} />}
                         {prevLayers.mining && activeLayers.includes('mining') && <TileLayer url={prevLayers.mining} opacity={0.3} zIndex={19} />}
                         {prevLayers.region && activeLayers.includes('region') && <TileLayer url={prevLayers.region} opacity={0.3} zIndex={29} />}
                         {prevLayers.district && activeLayers.includes('district') && <TileLayer url={prevLayers.district} opacity={0.3} zIndex={39} />}
-                    </div>
+                    </>
                 )}
 
-                <MapController bounds={bounds} zoomCommand={zoomCommand} />
+                <MapController bounds={bounds} zoomCommand={zoomCommand} mapCommand={mapCommand} />
             </MapContainer>
         </div>
     );
 }
 
+// ─── Basemap switcher ─────────────────────────────────────────────────────────
 function BasemapLayer({ type }) {
     switch (type) {
         case 'satellite':

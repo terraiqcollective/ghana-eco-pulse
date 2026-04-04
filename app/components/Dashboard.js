@@ -121,8 +121,15 @@ export default function Dashboard() {
 
     // Map controls
     const [zoomCommand, setZoomCommand] = useState(null);
+    const [mapCommand, setMapCommand] = useState(null);
     const [basemap, setBasemap] = useState('dark');
     const [showBasemaps, setShowBasemaps] = useState(false);
+
+    // Boundary GeoJSON (loaded once on mount)
+    const [boundaryGeoJSON, setBoundaryGeoJSON] = useState({ districts: null, regions: null });
+
+    // Pending district — set when a map click triggers region+district together
+    const [pendingDistrict, setPendingDistrict] = useState(null);
 
     // Filters
     const [years, setYears] = useState([]);
@@ -178,6 +185,30 @@ export default function Dashboard() {
         setDistricts([]);
     }, []);
 
+    const resetDashboard = useCallback(() => {
+        setSelectedRegion('');
+        setSelectedDistrict('');
+        setDistricts([]);
+        setPendingDistrict(null);
+        setSelectedLayers(['carbon', 'mining']);
+        setCompareMode(false);
+        setCompareMetrics(null);
+        if (years.length > 0) setSelectedYear(parseInt(years[years.length - 1]));
+        setMapCommand({ type: 'reset', t: Date.now() });
+    }, [years]);
+
+    const handleDistrictClick = useCallback((districtName, regionName) => {
+        if (regionName) {
+            setPendingDistrict(districtName);
+            setSelectedRegion(regionName);
+        }
+    }, []);
+
+    const handleRegionClick = useCallback((regionName) => {
+        setSelectedRegion(regionName);
+        setSelectedDistrict('');
+    }, []);
+
     const hasFilters = selectedRegion !== '' || selectedDistrict !== '';
 
     const sliderFill = years.length > 1 && selectedYear
@@ -188,6 +219,23 @@ export default function Dashboard() {
         () => computeInsights(metrics, selectedYear, selectedRegion, selectedDistrict),
         [metrics, selectedYear, selectedRegion, selectedDistrict]
     );
+
+    // 0. Fetch full boundary GeoJSON once on mount
+    useEffect(() => {
+        const fetchBoundaries = async () => {
+            try {
+                const res = await fetch('/api/gee/boundaries');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data.error) {
+                    setBoundaryGeoJSON({ districts: data.districts || null, regions: data.regions || null });
+                }
+            } catch (err) {
+                console.error('Boundary fetch error:', err);
+            }
+        };
+        fetchBoundaries();
+    }, []);
 
     // 1. Fetch metadata
     useEffect(() => {
@@ -236,7 +284,13 @@ export default function Dashboard() {
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 setDistricts(data.districts || []);
-                setSelectedDistrict('');
+                // If a district was pre-selected via map click, apply it now
+                if (pendingDistrict) {
+                    setSelectedDistrict(pendingDistrict);
+                    setPendingDistrict(null);
+                } else {
+                    setSelectedDistrict('');
+                }
             } catch (err) {
                 console.error('Districts fetch error:', err);
                 setDistrictsError(err.message);
@@ -422,7 +476,11 @@ export default function Dashboard() {
                     district={selectedDistrict}
                     activeLayers={selectedLayers}
                     zoomCommand={zoomCommand}
+                    mapCommand={mapCommand}
                     basemap={basemap}
+                    boundaryGeoJSON={boundaryGeoJSON}
+                    onDistrictClick={handleDistrictClick}
+                    onRegionClick={handleRegionClick}
                 />
             </div>
 
@@ -432,6 +490,8 @@ export default function Dashboard() {
                     selectedYear={selectedYear}
                     selectedRegion={selectedRegion}
                     selectedDistrict={selectedDistrict}
+                    onReset={resetDashboard}
+                    hasActiveFilters={hasFilters}
                 />
             </div>
 

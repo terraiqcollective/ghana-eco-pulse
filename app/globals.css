@@ -48,6 +48,23 @@ body {
     background: rgba(251, 191, 36, 0.6);
 }
 
+/* District / Region hover tooltip */
+.eco-tooltip {
+    background: rgba(5, 46, 22, 0.95) !important;
+    border: 1px solid rgba(251, 191, 36, 0.35) !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    padding: 5px 10px !important;
+    border-radius: 6px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+    white-space: nowrap !important;
+}
+
+.eco-tooltip::before {
+    display: none !important;
+}
+
 /* Leaflet attribution */
 .leaflet-control-attribution {
     background: rgba(5, 46, 22, 0.85) !important;

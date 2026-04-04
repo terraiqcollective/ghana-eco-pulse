@@ -1,7 +1,7 @@
 import React from 'react';
-import { ShieldCheck, MapPin, Calendar } from 'lucide-react';
+import { ShieldCheck, MapPin, Calendar, RotateCcw } from 'lucide-react';
 
-export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict }) => {
+export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset, hasActiveFilters }) => {
     const scopeLabel = selectedDistrict || selectedRegion || null;
 
     return (
@@ -16,7 +16,6 @@ export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict }) =>
                         <h1 className="text-white text-base font-extrabold tracking-tighter uppercase leading-none">
                             EcoPulse <span className="text-brand-gold">Ghana</span>
                         </h1>
-                        {/* Live indicator — replaces the generic "Official Portal" badge */}
                         <span className="flex items-center gap-1 text-[8px] px-1.5 py-0.5 rounded border border-emerald-500/30 text-emerald-400/70 font-semibold">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             Live
@@ -28,27 +27,42 @@ export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict }) =>
                 </div>
             </div>
 
-            {/* Active scope pills — hidden on small screens */}
-            {(selectedYear || scopeLabel) && (
-                <div className="hidden sm:flex items-center gap-2.5">
-                    {selectedYear && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/8 border border-brand-gold/20 rounded">
-                            <Calendar size={11} className="text-brand-gold/60" />
-                            <span className="text-[10px] font-bold text-brand-gold tabular-nums tracking-widest">
-                                {selectedYear}
-                            </span>
-                        </div>
-                    )}
-                    {scopeLabel && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/8 border border-brand-gold/20 rounded max-w-[200px]">
-                            <MapPin size={11} className="text-brand-gold/60 shrink-0" />
-                            <span className="text-[10px] font-bold text-brand-gold tracking-wider truncate">
-                                {scopeLabel}
-                            </span>
-                        </div>
-                    )}
-                </div>
-            )}
+            {/* Right side — scope pills + reset */}
+            <div className="flex items-center gap-2.5">
+                {/* Scope pills — hidden on small screens */}
+                {(selectedYear || scopeLabel) && (
+                    <div className="hidden sm:flex items-center gap-2">
+                        {selectedYear && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/8 border border-brand-gold/20 rounded">
+                                <Calendar size={11} className="text-brand-gold/60" />
+                                <span className="text-[10px] font-bold text-brand-gold tabular-nums tracking-widest">
+                                    {selectedYear}
+                                </span>
+                            </div>
+                        )}
+                        {scopeLabel && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/8 border border-brand-gold/20 rounded max-w-[200px]">
+                                <MapPin size={11} className="text-brand-gold/60 shrink-0" />
+                                <span className="text-[10px] font-bold text-brand-gold tracking-wider truncate">
+                                    {scopeLabel}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Reset button — only shown when filters are active */}
+                {hasActiveFilters && onReset && (
+                    <button
+                        onClick={onReset}
+                        title="Reset to default view"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-brand-gold/40 text-white/30 hover:text-brand-gold transition-all duration-200 group"
+                    >
+                        <RotateCcw size={11} className="group-hover:rotate-[-360deg] transition-transform duration-500" />
+                        <span className="text-[9px] font-semibold hidden sm:block">Reset</span>
+                    </button>
+                )}
+            </div>
         </header>
     );
 };

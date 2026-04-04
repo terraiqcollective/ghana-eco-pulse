@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldCheck, MapPin, Calendar, RotateCcw } from 'lucide-react';
 
-export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset, hasActiveFilters }) => {
+export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset }) => {
     const scopeLabel = selectedDistrict || selectedRegion || null;
 
     return (
@@ -51,12 +51,12 @@ export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onRe
                     </div>
                 )}
 
-                {/* Reset button — only shown when filters are active */}
-                {hasActiveFilters && onReset && (
+                {/* Reset button — always visible */}
+                {onReset && (
                     <button
                         onClick={onReset}
                         title="Reset to default view"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-brand-gold/40 text-white/30 hover:text-brand-gold transition-all duration-200 group"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-red-500/30 text-white/20 hover:text-red-400 transition-all duration-200 group"
                     >
                         <RotateCcw size={11} className="group-hover:rotate-[-360deg] transition-transform duration-500" />
                         <span className="text-[9px] font-semibold hidden sm:block">Reset</span>

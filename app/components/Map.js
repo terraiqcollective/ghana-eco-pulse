@@ -35,6 +35,7 @@ function MapController({ bounds, zoomCommand, mapCommand }) {
 function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
     const map = useMap();
     const tooltipRef = useRef(null);
+    const hoveredLayerRef = useRef(null);
 
     const defaultStyle = {
         color: 'rgba(255, 255, 255, 0.18)',
@@ -57,6 +58,13 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
         }
     }, [map]);
 
+    const resetHovered = useCallback(() => {
+        if (hoveredLayerRef.current) {
+            hoveredLayerRef.current.setStyle(defaultStyle);
+            hoveredLayerRef.current = null;
+        }
+    }, []);
+
     const onEachFeature = useCallback((feature, layer) => {
         const districtName = feature.properties?.DISTRICTS
             || feature.properties?.District
@@ -68,7 +76,13 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
 
         layer.on({
             mouseover: (e) => {
+                // Always reset previous hovered layer first
+                resetHovered();
                 closeTooltip();
+
+                hoveredLayerRef.current = e.target;
+                e.target.setStyle(hoverStyle);
+
                 tooltipRef.current = L.tooltip({
                     sticky: true,
                     direction: 'top',
@@ -78,17 +92,16 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
                     .setContent(districtName)
                     .setLatLng(e.latlng)
                     .openOn(map);
-                e.target.setStyle(hoverStyle);
-                e.target.bringToFront();
             },
             mousemove: (e) => {
                 if (tooltipRef.current) tooltipRef.current.setLatLng(e.latlng);
             },
-            mouseout: (e) => {
+            mouseout: () => {
+                resetHovered();
                 closeTooltip();
-                e.target.setStyle(defaultStyle);
             },
             click: (e) => {
+                resetHovered();
                 closeTooltip();
                 map.flyToBounds(e.target.getBounds(), {
                     duration: 1.4,
@@ -98,7 +111,7 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
                 onFeatureClick(districtName, regionName);
             },
         });
-    }, [map, onFeatureClick, closeTooltip]);
+    }, [map, onFeatureClick, closeTooltip, resetHovered]);
 
     if (!geojson) return null;
 
@@ -116,6 +129,7 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
 function OverviewRegionsLayer({ geojson, onRegionClick }) {
     const map = useMap();
     const tooltipRef = useRef(null);
+    const hoveredLayerRef = useRef(null);
 
     const defaultStyle = {
         color: 'rgba(255, 255, 255, 0.35)',
@@ -140,6 +154,13 @@ function OverviewRegionsLayer({ geojson, onRegionClick }) {
         }
     }, [map]);
 
+    const resetHovered = useCallback(() => {
+        if (hoveredLayerRef.current) {
+            hoveredLayerRef.current.setStyle(defaultStyle);
+            hoveredLayerRef.current = null;
+        }
+    }, []);
+
     const onEachFeature = useCallback((feature, layer) => {
         const regionName = feature.properties?.REGIONS
             || feature.properties?.Region
@@ -148,7 +169,12 @@ function OverviewRegionsLayer({ geojson, onRegionClick }) {
 
         layer.on({
             mouseover: (e) => {
+                resetHovered();
                 closeTooltip();
+
+                hoveredLayerRef.current = e.target;
+                e.target.setStyle(hoverStyle);
+
                 tooltipRef.current = L.tooltip({
                     sticky: true,
                     direction: 'top',
@@ -158,17 +184,16 @@ function OverviewRegionsLayer({ geojson, onRegionClick }) {
                     .setContent(regionName)
                     .setLatLng(e.latlng)
                     .openOn(map);
-                e.target.setStyle(hoverStyle);
-                e.target.bringToFront();
             },
             mousemove: (e) => {
                 if (tooltipRef.current) tooltipRef.current.setLatLng(e.latlng);
             },
-            mouseout: (e) => {
+            mouseout: () => {
+                resetHovered();
                 closeTooltip();
-                e.target.setStyle(defaultStyle);
             },
             click: (e) => {
+                resetHovered();
                 closeTooltip();
                 map.flyToBounds(e.target.getBounds(), {
                     duration: 1.4,
@@ -178,7 +203,7 @@ function OverviewRegionsLayer({ geojson, onRegionClick }) {
                 onRegionClick(regionName);
             },
         });
-    }, [map, onRegionClick, closeTooltip]);
+    }, [map, onRegionClick, closeTooltip, resetHovered]);
 
     if (!geojson) return null;
 

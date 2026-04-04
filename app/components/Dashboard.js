@@ -28,7 +28,7 @@ const LAYER_INFO = {
     },
     mining: {
         name: 'Mining Loss',
-        source: 'Planet NICFI + U-Net Model',
+        source: 'Planet NICFI + U-Net Model · Mining Activity Detection',
         sensor: 'Planet NICFI',
         resolution: '4.77m',
         cadence: 'Annual',
@@ -36,7 +36,7 @@ const LAYER_INFO = {
     },
     region: {
         name: 'Region Boundary',
-        source: 'GADM Administrative Boundaries',
+        source: 'Ghana Statistical Service (GSS)',
         sensor: 'Vector',
         resolution: 'Vector',
         cadence: 'Static',
@@ -44,7 +44,7 @@ const LAYER_INFO = {
     },
     district: {
         name: 'District Boundary',
-        source: 'GADM Administrative Boundaries',
+        source: 'Ghana Statistical Service (GSS)',
         sensor: 'Vector',
         resolution: 'Vector',
         cadence: 'Static',
@@ -193,6 +193,11 @@ export default function Dashboard() {
         setSelectedLayers(['carbon', 'mining']);
         setCompareMode(false);
         setCompareMetrics(null);
+        setMetrics({ carbonStock: 0, carbonLoss: 0, trend: [] });
+        setMetadataError(null);
+        setMetricsError(null);
+        setDistrictsError(null);
+        setIsLegendOpen(true);
         if (years.length > 0) setSelectedYear(parseInt(years[years.length - 1]));
         setMapCommand({ type: 'reset', t: Date.now() });
     }, [years]);
@@ -491,7 +496,6 @@ export default function Dashboard() {
                     selectedRegion={selectedRegion}
                     selectedDistrict={selectedDistrict}
                     onReset={resetDashboard}
-                    hasActiveFilters={hasFilters}
                 />
             </div>
 
@@ -745,8 +749,18 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {/* Legend toggle */}
-                    <div className="mt-auto pt-1">
+                    {/* Bottom actions */}
+                    <div className="mt-auto pt-1 flex flex-col gap-2">
+                        {/* Reset — always visible */}
+                        <button
+                            onClick={resetDashboard}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded border border-white/8 hover:border-red-500/30 text-white/25 hover:text-red-400 text-[10px] font-semibold transition-all cursor-pointer group"
+                        >
+                            <RotateCcw size={11} className="group-hover:rotate-[-360deg] transition-transform duration-500" />
+                            Reset to Default
+                        </button>
+
+                        {/* Legend toggle */}
                         <button
                             onClick={() => setIsLegendOpen(!isLegendOpen)}
                             className={`w-full flex items-center justify-center gap-2 py-3 rounded border text-[10px] font-bold transition-all cursor-pointer ${isLegendOpen

@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import {
     Plus, Minus, Map as MapIcon, Menu,
     ChevronLeft, ChevronRight, BarChart3,
-    AlertTriangle, X, Leaf, Tractor, RotateCcw,
+    AlertTriangle, X, TreePine, Pickaxe, RotateCcw,
     Loader2, Database
 } from 'lucide-react';
 
@@ -829,7 +829,7 @@ export default function Dashboard() {
                             suffix={stockFmt.suffix}
                             unit={stockFmt.unit}
                             trendValue={stockTrend}
-                            icon={Leaf}
+                            icon={TreePine}
                         />
                         <KPI
                             label="Mining-Driven Loss"
@@ -838,7 +838,7 @@ export default function Dashboard() {
                             unit={lossFmt.unit}
                             trendValue={lossTrend}
                             invertColor={true}
-                            icon={Tractor}
+                            icon={Pickaxe}
                         />
                     </div>
 

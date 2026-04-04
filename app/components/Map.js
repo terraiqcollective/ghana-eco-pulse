@@ -5,6 +5,10 @@ import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// Suppress Leaflet's broken default marker icon in Next.js/webpack
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({ iconUrl: null, shadowUrl: null });
+
 // ─── Map controller: handles bounds fly-to, zoom commands, reset ─────────────
 function MapController({ bounds, zoomCommand, mapCommand }) {
     const map = useMap();

@@ -36,12 +36,17 @@ function MapController({ bounds, zoomCommand, mapCommand }) {
 }
 
 // ─── Overview district layer (GeoJSON, shown before any selection) ────────────
-function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
+function OverviewDistrictsLayer({ geojson, onFeatureClick, analysisMode = false }) {
     const map = useMap();
     const tooltipRef = useRef(null);
     const hoveredLayerRef = useRef(null);
 
-    const defaultStyle = {
+    const defaultStyle = analysisMode ? {
+        color: 'rgba(255, 255, 255, 0.12)',
+        weight: 0.8,
+        fillColor: 'transparent',
+        fillOpacity: 0,
+    } : {
         color: 'rgba(255, 255, 255, 0.18)',
         weight: 1,
         fillColor: 'transparent',
@@ -50,7 +55,7 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
 
     const hoverStyle = {
         color: 'rgba(251, 191, 36, 0.7)',
-        weight: 1.5,
+        weight: analysisMode ? 1.2 : 1.5,
         fillColor: 'rgba(251, 191, 36, 0.05)',
         fillOpacity: 1,
     };
@@ -130,12 +135,18 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick }) {
 }
 
 // ─── Overview region layer (GeoJSON, always subtle, shown before any selection)
-function OverviewRegionsLayer({ geojson, onRegionClick }) {
+function OverviewRegionsLayer({ geojson, onRegionClick, analysisMode = false }) {
     const map = useMap();
     const tooltipRef = useRef(null);
     const hoveredLayerRef = useRef(null);
 
-    const defaultStyle = {
+    const defaultStyle = analysisMode ? {
+        color: 'rgba(255, 255, 255, 0.20)',
+        weight: 1,
+        fillColor: 'transparent',
+        fillOpacity: 0,
+        dashArray: '3 3',
+    } : {
         color: 'rgba(255, 255, 255, 0.35)',
         weight: 1.5,
         fillColor: 'transparent',
@@ -145,7 +156,7 @@ function OverviewRegionsLayer({ geojson, onRegionClick }) {
 
     const hoverStyle = {
         color: 'rgba(255, 255, 255, 0.7)',
-        weight: 2,
+        weight: analysisMode ? 1.5 : 2,
         fillColor: 'rgba(255, 255, 255, 0.03)',
         fillOpacity: 1,
         dashArray: null,
@@ -240,8 +251,8 @@ export default function MapComponent({
     const [bounds, setBounds] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    // Show overview when no analysis selection is active
-    const showOverview = !region && !district;
+    // Analysis mode: a region or district has been queried
+    const analysisMode = !!(region || district);
 
     useEffect(() => {
         if (!year) return;
@@ -290,17 +301,19 @@ export default function MapComponent({
             >
                 <BasemapLayer type={basemap} />
 
-                {/* Overview GeoJSON layers — visible only when no analysis selection */}
-                {showOverview && boundaryGeoJSON.regions && (
+                {/* GeoJSON boundary layers — always visible, style adapts to analysis mode */}
+                {boundaryGeoJSON.regions && (
                     <OverviewRegionsLayer
                         geojson={boundaryGeoJSON.regions}
                         onRegionClick={onRegionClick}
+                        analysisMode={analysisMode}
                     />
                 )}
-                {showOverview && boundaryGeoJSON.districts && (
+                {boundaryGeoJSON.districts && (
                     <OverviewDistrictsLayer
                         geojson={boundaryGeoJSON.districts}
                         onFeatureClick={onDistrictClick}
+                        analysisMode={analysisMode}
                     />
                 )}
 

@@ -380,13 +380,20 @@ export default function Dashboard() {
     if (loading) {
         return (
             <div className="flex h-screen w-screen items-center justify-center bg-brand-deep">
-                <div className="text-center">
-                    <div className="flex justify-center mb-5">
-                        <Loader2 size={28} className="animate-spin text-brand-gold" />
+                <div className="flex flex-col items-center gap-8">
+                    {/* Pulse rings */}
+                    <div className="relative w-16 h-16 flex items-center justify-center">
+                        <div className="canopy-ring" />
+                        <div className="canopy-ring" />
+                        <div className="canopy-ring" />
+                        {/* Centre icon */}
+                        <div className="relative z-10 w-10 h-10 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center">
+                            <TreePine size={18} className="text-brand-gold" />
+                        </div>
                     </div>
-                    <div className="text-sm font-bold text-white mb-1.5">Connecting to Earth Engine</div>
-                    <div className="text-[9px] text-white/25 font-medium tracking-wider">
-                        Landsat 8 · Sentinel-2 · Hansen GFC · Ghana
+                    {/* Text */}
+                    <div className="text-center">
+                        <p className="text-white text-sm font-semibold tracking-wide">Reading the canopy...</p>
                     </div>
                 </div>
             </div>

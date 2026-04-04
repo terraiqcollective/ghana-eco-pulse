@@ -144,9 +144,12 @@ export function TourGuide({ autoStart = false }) {
     // Clamp tooltip inside viewport
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    const CARD_H = 220; // estimated card height
     if (tooltip.left + CARD_W > vw - 8) tooltip.left = vw - CARD_W - 8;
     if (tooltip.left < 8) tooltip.left = 8;
     if (tooltip.top < 8) tooltip.top = 8;
+    // Bottom clamp — push card up if it would overflow the viewport
+    if (tooltip.top + CARD_H > vh - 8) tooltip.top = vh - CARD_H - 8;
 
     return (
         <>

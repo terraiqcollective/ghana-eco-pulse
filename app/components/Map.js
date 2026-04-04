@@ -289,8 +289,20 @@ export default function MapComponent({
     return (
         <div className="h-full w-full relative">
             {loading && (
-                <div className="absolute top-20 right-4 z-[1000] glass-panel px-4 py-2 rounded shadow-lg text-brand-gold text-[10px] font-semibold animate-pulse">
-                    Updating map...
+                <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center bg-brand-deep/30 backdrop-blur-[2px] pointer-events-none">
+                    <div className="relative w-16 h-16 flex items-center justify-center">
+                        <div className="canopy-ring" />
+                        <div className="canopy-ring" />
+                        <div className="canopy-ring" />
+                        <div className="relative z-10 w-10 h-10 rounded-full bg-brand-deep/80 border border-brand-gold/30 flex items-center justify-center">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(251,191,36,0.9)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17 8c0-4-2.5-6-5-6S7 4 7 8c-2 0-4 1.5-4 4s2 4 4 4h10c2 0 4-1.5 4-4s-2-4-4-4z"/>
+                                <line x1="12" y1="16" x2="12" y2="21"/>
+                                <line x1="8" y1="21" x2="16" y2="21"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <p className="mt-4 text-[10px] font-semibold text-brand-gold/60 tracking-wider">Reading the canopy...</p>
                 </div>
             )}
             <MapContainer

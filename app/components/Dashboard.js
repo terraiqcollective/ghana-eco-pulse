@@ -840,6 +840,8 @@ export default function Dashboard() {
                             suffix={stockFmt.suffix}
                             unit={stockFmt.unit}
                             trendValue={stockTrend}
+                            absoluteDelta={metrics.prevCarbonStock ? metrics.carbonStock - metrics.prevCarbonStock : null}
+                            prevYear={selectedYear ? selectedYear - 1 : null}
                             icon={TreePine}
                         />
                         <KPI
@@ -848,6 +850,8 @@ export default function Dashboard() {
                             suffix={lossFmt.suffix}
                             unit={lossFmt.unit}
                             trendValue={lossTrend}
+                            absoluteDelta={metrics.prevCarbonLoss ? metrics.carbonLoss - metrics.prevCarbonLoss : null}
+                            prevYear={selectedYear ? selectedYear - 1 : null}
                             invertColor={true}
                             icon={Pickaxe}
                         />

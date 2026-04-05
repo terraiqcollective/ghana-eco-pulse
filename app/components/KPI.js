@@ -11,15 +11,6 @@ function fmtDelta(raw) {
     return `${sign}${abs.toFixed(0)}`;
 }
 
-// Severity band based on absolute percentage magnitude
-function getSeverity(pct) {
-    const abs = Math.abs(pct);
-    if (abs < 2)  return { label: 'Stable',      color: 'text-white/30',    bg: '' };
-    if (abs < 8)  return { label: 'Moderate',     color: 'text-amber-400',   bg: 'bg-amber-500/8' };
-    if (abs < 20) return { label: 'Significant',  color: 'text-orange-400',  bg: 'bg-orange-500/8' };
-    return           { label: 'Critical',      color: 'text-red-400',     bg: 'bg-red-500/10' };
-}
-
 export const KPI = ({
     label,
     value,
@@ -40,8 +31,7 @@ export const KPI = ({
             ? (invertColor ? 'text-red-400' : 'text-emerald-400')
             : (invertColor ? 'text-emerald-400' : 'text-red-400'));
 
-    const severity = isNeutral ? null : getSeverity(trendValue);
-
+    const changeLabel = isNeutral ? null : (isPositive ? 'increase' : 'decrease');
     const deltaStr    = fmtDelta(absoluteDelta);
     const yearLabel   = prevYear ? `vs ${prevYear}` : 'vs prev. year';
 
@@ -78,8 +68,8 @@ export const KPI = ({
 
             {/* Trend row */}
             {trendValue !== undefined && (
-                <div className={`pt-2 border-t border-white/5 rounded-b-sm -mx-1 px-1 ${severity?.bg ?? ''}`}>
-                    {/* Top line: arrow + % + severity label */}
+                <div className="pt-2 border-t border-white/5 rounded-b-sm -mx-1 px-1">
+                    {/* Top line: arrow + % + increase/decrease label */}
                     <div className="flex items-center justify-between">
                         <div className={`flex items-center gap-0.5 text-[11px] font-bold ${directionColor}`}>
                             {!isNeutral && (isPositive
@@ -88,9 +78,9 @@ export const KPI = ({
                             )}
                             {isNeutral ? '—' : `${Math.abs(trendValue).toFixed(1)}%`}
                         </div>
-                        {severity && (
-                            <span className={`text-[8px] font-bold uppercase tracking-wider ${severity.color}`}>
-                                {severity.label}
+                        {changeLabel && (
+                            <span className={`text-[8px] font-semibold ${directionColor} opacity-70`}>
+                                {changeLabel}
                             </span>
                         )}
                     </div>

@@ -17,10 +17,37 @@ export async function POST(request) {
         const config = getConfig();
 
         const { year, region, district, years } = await request.json();
+        const requestedYear = parseInt(year, 10);
 
-        if (!year) {
+        if (!requestedYear) {
             return NextResponse.json({ error: 'Year is required' }, { status: 400 });
         }
+
+        const metadataYears = await new Promise((resolve, reject) => {
+            ee.FeatureCollection(config.CARBON_FC)
+                .first()
+                .propertyNames()
+                .evaluate((props, err) => {
+                    if (err) return reject(new Error(err));
+                    const availableYears = (props || [])
+                        .filter(p => /^(20)\d{2}$/.test(p))
+                        .map(p => parseInt(p, 10))
+                        .sort((a, b) => a - b);
+                    resolve(availableYears);
+                });
+        });
+
+        if (!metadataYears.includes(requestedYear)) {
+            return NextResponse.json({ error: 'Invalid year requested' }, { status: 400 });
+        }
+
+        const validTrendYears = Array.isArray(years)
+            ? years
+                .map(y => parseInt(y, 10))
+                .filter(y => metadataYears.includes(y))
+            : metadataYears;
+
+        const trendYears = validTrendYears.slice(0, metadataYears.length);
 
         function buildFilter(y) {
             let filter = ee.Filter.notNull([String(y)]);
@@ -29,13 +56,13 @@ export async function POST(request) {
             return filter;
         }
 
-        const carbonFc = ee.FeatureCollection(config.CARBON_FC).filter(buildFilter(year));
-        const miningFc = ee.FeatureCollection(config.MINING_FC).filter(buildFilter(year));
+        const carbonFc = ee.FeatureCollection(config.CARBON_FC).filter(buildFilter(requestedYear));
+        const miningFc = ee.FeatureCollection(config.MINING_FC).filter(buildFilter(requestedYear));
 
         const [carbonStock, carbonLoss, trendData] = await Promise.all([
-            evaluatePromise(carbonFc.aggregate_sum(String(year))),
-            evaluatePromise(miningFc.aggregate_sum(String(year))),
-            Promise.all((years || []).map(async (y) => {
+            evaluatePromise(carbonFc.aggregate_sum(String(requestedYear))),
+            evaluatePromise(miningFc.aggregate_sum(String(requestedYear))),
+            Promise.all(trendYears.map(async (y) => {
                 const filter = buildFilter(y);
                 const [stock, loss] = await Promise.all([
                     evaluatePromise(
@@ -49,7 +76,7 @@ export async function POST(request) {
             }))
         ]);
 
-        const prevYear = parseInt(year) - 1;
+        const prevYear = requestedYear - 1;
         const prevData = trendData.find(t => parseInt(t.year) === prevYear) || { stock: carbonStock, loss: carbonLoss };
 
         return NextResponse.json({

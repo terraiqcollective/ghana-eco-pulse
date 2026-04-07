@@ -229,27 +229,38 @@ export default function Dashboard() {
 
     // 0. Fetch full boundary GeoJSON once on mount
     useEffect(() => {
+        const abortController = new AbortController();
+
         const fetchBoundaries = async () => {
             try {
-                const res = await fetch('/api/gee/boundaries');
+                const res = await fetch('/api/gee/boundaries', {
+                    signal: abortController.signal,
+                });
                 if (!res.ok) return;
                 const data = await res.json();
                 if (!data.error) {
                     setBoundaryGeoJSON({ districts: data.districts || null, regions: data.regions || null });
                 }
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 console.error('Boundary fetch error:', err);
             }
         };
         fetchBoundaries();
+
+        return () => abortController.abort();
     }, []);
 
     // 1. Fetch metadata
     useEffect(() => {
+        const abortController = new AbortController();
+
         const fetchMetadata = async () => {
             try {
                 setMetadataError(null);
-                const response = await fetch('/api/gee/metadata');
+                const response = await fetch('/api/gee/metadata', {
+                    signal: abortController.signal,
+                });
                 if (!response.ok) throw new Error('Failed to connect to Earth Engine. Check server credentials.');
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
@@ -261,13 +272,18 @@ export default function Dashboard() {
                     setCompareYear(latest - 1);
                 }
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 console.error('Metadata fetch error:', err);
                 setMetadataError(err.message);
             } finally {
-                setLoading(false);
+                if (!abortController.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
         fetchMetadata();
+
+        return () => abortController.abort();
     }, []);
 
     // 2. Fetch districts
@@ -278,6 +294,9 @@ export default function Dashboard() {
             setDistrictsError(null);
             return;
         }
+
+        const abortController = new AbortController();
+
         const fetchDistricts = async () => {
             setLoadingDistricts(true);
             setDistrictsError(null);
@@ -285,7 +304,8 @@ export default function Dashboard() {
                 const response = await fetch('/api/gee/districts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ region: selectedRegion })
+                    body: JSON.stringify({ region: selectedRegion }),
+                    signal: abortController.signal,
                 });
                 if (!response.ok) throw new Error('Failed to load districts');
                 const data = await response.json();
@@ -299,19 +319,27 @@ export default function Dashboard() {
                     setSelectedDistrict('');
                 }
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 console.error('Districts fetch error:', err);
                 setDistrictsError(err.message);
                 setDistricts([]);
             } finally {
-                setLoadingDistricts(false);
+                if (!abortController.signal.aborted) {
+                    setLoadingDistricts(false);
+                }
             }
         };
         fetchDistricts();
-    }, [selectedRegion]);
+
+        return () => abortController.abort();
+    }, [selectedRegion, pendingDistrict]);
 
     // 3. Fetch metrics
     useEffect(() => {
         if (!selectedYear) return;
+
+        const abortController = new AbortController();
+
         const fetchMetrics = async () => {
             setLoadingMetrics(true);
             setMetricsError(null);
@@ -319,20 +347,26 @@ export default function Dashboard() {
                 const response = await fetch('/api/gee/metrics', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year: selectedYear, region: selectedRegion, district: selectedDistrict, years })
+                    body: JSON.stringify({ year: selectedYear, region: selectedRegion, district: selectedDistrict, years }),
+                    signal: abortController.signal,
                 });
                 if (!response.ok) throw new Error('Failed to load metrics');
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 setMetrics(data);
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 console.error('Metrics fetch error:', err);
                 setMetricsError(err.message);
             } finally {
-                setLoadingMetrics(false);
+                if (!abortController.signal.aborted) {
+                    setLoadingMetrics(false);
+                }
             }
         };
         fetchMetrics();
+
+        return () => abortController.abort();
     }, [selectedYear, selectedRegion, selectedDistrict, years]);
 
     // 4. Fetch compare metrics
@@ -341,41 +375,55 @@ export default function Dashboard() {
             setCompareMetrics(null);
             return;
         }
+
+        const abortController = new AbortController();
+
         const fetchCompare = async () => {
             setLoadingCompare(true);
             try {
                 const response = await fetch('/api/gee/metrics', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year: compareYear, region: selectedRegion, district: selectedDistrict, years })
+                    body: JSON.stringify({ year: compareYear, region: selectedRegion, district: selectedDistrict, years }),
+                    signal: abortController.signal,
                 });
                 if (!response.ok) throw new Error();
                 const data = await response.json();
                 if (data.error) throw new Error();
                 setCompareMetrics(data);
-            } catch {
+            } catch (err) {
+                if (err.name === 'AbortError') return;
                 setCompareMetrics(null);
             } finally {
-                setLoadingCompare(false);
+                if (!abortController.signal.aborted) {
+                    setLoadingCompare(false);
+                }
             }
         };
         fetchCompare();
-    }, [compareMode, compareYear, selectedRegion, selectedDistrict, years]);
+
+        return () => abortController.abort();
+    }, [compareMode, compareYear, selectedYear, selectedRegion, selectedDistrict, years]);
 
     // Auto-enable region boundary layer
     useEffect(() => {
-        if (selectedRegion && !selectedLayers.includes('region')) {
-            setSelectedLayers(prev => [...prev, 'region']);
+        if (selectedRegion) {
+            setSelectedLayers(prev => (
+                prev.includes('region') ? prev : [...prev, 'region']
+            ));
         }
     }, [selectedRegion]);
 
     // Sync district layer
     useEffect(() => {
-        if (selectedDistrict) {
-            if (!selectedLayers.includes('district')) setSelectedLayers(prev => [...prev, 'district']);
-        } else {
-            setSelectedLayers(prev => prev.filter(l => l !== 'district'));
-        }
+        setSelectedLayers(prev => {
+            if (selectedDistrict) {
+                return prev.includes('district') ? prev : [...prev, 'district'];
+            }
+            return prev.includes('district')
+                ? prev.filter(l => l !== 'district')
+                : prev;
+        });
     }, [selectedDistrict]);
 
     // ─── Initial loading screen ──────────────────────────────────────────────

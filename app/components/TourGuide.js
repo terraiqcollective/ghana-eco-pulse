@@ -71,17 +71,10 @@ export function TourGuide({ autoStart = false }) {
         const seen = localStorage.getItem(TOUR_KEY);
         if (!seen) {
             // Small delay so the DOM is fully painted
-            setTimeout(() => setActive(true), 800);
+            const timeoutId = setTimeout(() => setActive(true), 800);
+            return () => clearTimeout(timeoutId);
         }
     }, []);
-
-    // External trigger (from "?" button)
-    useEffect(() => {
-        if (autoStart) {
-            setStep(0);
-            setActive(true);
-        }
-    }, [autoStart]);
 
     // Update spotlight rect whenever step changes
     useEffect(() => {
@@ -100,6 +93,11 @@ export function TourGuide({ autoStart = false }) {
         localStorage.setItem(TOUR_KEY, 'true');
     }, []);
 
+    const startTour = useCallback(() => {
+        setStep(0);
+        setActive(true);
+    }, []);
+
     const next = useCallback(() => {
         if (step < STEPS.length - 1) setStep(s => s + 1);
         else finish();
@@ -108,6 +106,13 @@ export function TourGuide({ autoStart = false }) {
     const prev = useCallback(() => {
         if (step > 0) setStep(s => s - 1);
     }, [step]);
+
+    useEffect(() => {
+        if (autoStart) {
+            const timeoutId = setTimeout(() => startTour(), 0);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [autoStart, startTour]);
 
     if (!active || !rect) return null;
 

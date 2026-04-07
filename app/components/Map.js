@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -49,24 +49,26 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick, analysisMode = false 
     const tooltipRef = useRef(null);
     const hoveredLayerRef = useRef(null);
 
-    const defaultStyle = analysisMode ? {
-        color: 'rgba(255, 255, 255, 0.12)',
-        weight: 0.8,
-        fillColor: 'transparent',
-        fillOpacity: 0,
-    } : {
-        color: 'rgba(255, 255, 255, 0.18)',
-        weight: 1,
-        fillColor: 'transparent',
-        fillOpacity: 0,
-    };
+    const defaultStyle = useMemo(() => (
+        analysisMode ? {
+            color: 'rgba(255, 255, 255, 0.12)',
+            weight: 0.8,
+            fillColor: 'transparent',
+            fillOpacity: 0,
+        } : {
+            color: 'rgba(255, 255, 255, 0.18)',
+            weight: 1,
+            fillColor: 'transparent',
+            fillOpacity: 0,
+        }
+    ), [analysisMode]);
 
-    const hoverStyle = {
+    const hoverStyle = useMemo(() => ({
         color: 'rgba(251, 191, 36, 0.7)',
         weight: analysisMode ? 1.2 : 1.5,
         fillColor: 'rgba(251, 191, 36, 0.05)',
         fillOpacity: 1,
-    };
+    }), [analysisMode]);
 
     const closeTooltip = useCallback(() => {
         if (tooltipRef.current) {
@@ -80,7 +82,7 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick, analysisMode = false 
             hoveredLayerRef.current.setStyle(defaultStyle);
             hoveredLayerRef.current = null;
         }
-    }, []);
+    }, [defaultStyle]);
 
     const onEachFeature = useCallback((feature, layer) => {
         const districtName = feature.properties?.DISTRICTS
@@ -128,7 +130,7 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick, analysisMode = false 
                 onFeatureClick(districtName, regionName);
             },
         });
-    }, [map, onFeatureClick, closeTooltip, resetHovered]);
+    }, [map, onFeatureClick, closeTooltip, resetHovered, hoverStyle]);
 
     if (!geojson) return null;
 
@@ -148,27 +150,29 @@ function OverviewRegionsLayer({ geojson, onRegionClick, analysisMode = false }) 
     const tooltipRef = useRef(null);
     const hoveredLayerRef = useRef(null);
 
-    const defaultStyle = analysisMode ? {
-        color: 'rgba(255, 255, 255, 0.20)',
-        weight: 1,
-        fillColor: 'transparent',
-        fillOpacity: 0,
-        dashArray: '3 3',
-    } : {
-        color: 'rgba(255, 255, 255, 0.35)',
-        weight: 1.5,
-        fillColor: 'transparent',
-        fillOpacity: 0,
-        dashArray: '4 3',
-    };
+    const defaultStyle = useMemo(() => (
+        analysisMode ? {
+            color: 'rgba(255, 255, 255, 0.20)',
+            weight: 1,
+            fillColor: 'transparent',
+            fillOpacity: 0,
+            dashArray: '3 3',
+        } : {
+            color: 'rgba(255, 255, 255, 0.35)',
+            weight: 1.5,
+            fillColor: 'transparent',
+            fillOpacity: 0,
+            dashArray: '4 3',
+        }
+    ), [analysisMode]);
 
-    const hoverStyle = {
+    const hoverStyle = useMemo(() => ({
         color: 'rgba(255, 255, 255, 0.7)',
         weight: analysisMode ? 1.5 : 2,
         fillColor: 'rgba(255, 255, 255, 0.03)',
         fillOpacity: 1,
         dashArray: null,
-    };
+    }), [analysisMode]);
 
     const closeTooltip = useCallback(() => {
         if (tooltipRef.current) {
@@ -182,7 +186,7 @@ function OverviewRegionsLayer({ geojson, onRegionClick, analysisMode = false }) 
             hoveredLayerRef.current.setStyle(defaultStyle);
             hoveredLayerRef.current = null;
         }
-    }, []);
+    }, [defaultStyle]);
 
     const onEachFeature = useCallback((feature, layer) => {
         const regionName = feature.properties?.REGIONS
@@ -226,7 +230,7 @@ function OverviewRegionsLayer({ geojson, onRegionClick, analysisMode = false }) 
                 onRegionClick(regionName);
             },
         });
-    }, [map, onRegionClick, closeTooltip, resetHovered]);
+    }, [map, onRegionClick, closeTooltip, resetHovered, hoverStyle]);
 
     if (!geojson) return null;
 
@@ -258,12 +262,20 @@ export default function MapComponent({
     const [fetchedFilters, setFetchedFilters] = useState({ year: null, region: null, district: null });
     const [bounds, setBounds] = useState(null);
     const [loading, setLoading] = useState(false);
+    const clearPrevLayersTimeoutRef = useRef(null);
+    const latestLayersRef = useRef(layers);
 
     // Analysis mode: a region or district has been queried
     const analysisMode = !!(region || district);
 
     useEffect(() => {
+        latestLayersRef.current = layers;
+    }, [layers]);
+
+    useEffect(() => {
         if (!year) return;
+
+        const abortController = new AbortController();
 
         const fetchLayers = async () => {
             setLoading(true);
@@ -271,27 +283,43 @@ export default function MapComponent({
                 const response = await fetch('/api/gee/layers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year, region, district })
+                    body: JSON.stringify({ year, region, district }),
+                    signal: abortController.signal,
                 });
 
                 if (!response.ok) throw new Error('Failed to fetch layers');
 
                 const data = await response.json();
 
-                setPrevLayers(layers);
+                if (clearPrevLayersTimeoutRef.current) {
+                    clearTimeout(clearPrevLayersTimeoutRef.current);
+                }
+
+                setPrevLayers(latestLayersRef.current);
                 setLayers(data.layers);
                 setFetchedFilters({ year, region, district });
                 setBounds(data.bounds);
 
-                setTimeout(() => setPrevLayers(null), 2000);
+                clearPrevLayersTimeoutRef.current = setTimeout(() => setPrevLayers(null), 2000);
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 console.error('Layer fetch error:', err);
             } finally {
-                setLoading(false);
+                if (!abortController.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchLayers();
+
+        return () => {
+            abortController.abort();
+            if (clearPrevLayersTimeoutRef.current) {
+                clearTimeout(clearPrevLayersTimeoutRef.current);
+                clearPrevLayersTimeoutRef.current = null;
+            }
+        };
     }, [year, region, district]);
 
     return (

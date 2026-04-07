@@ -7,7 +7,14 @@ export async function POST(request) {
         const ee = getEE();
         const config = getConfig();
 
-        const { year, region, district } = await request.json();
+        let payload;
+        try {
+            payload = await request.json();
+        } catch {
+            return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 });
+        }
+
+        const { year, region, district } = payload;
 
         if (!year) {
             return NextResponse.json({ error: 'Year is required' }, { status: 400 });

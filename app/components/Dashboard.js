@@ -905,7 +905,7 @@ export default function Dashboard() {
 
                     {/* Year comparison panel */}
                     {compareMode && (
-                        <div className="rounded-xl border border-brand-gold/15 bg-brand-gold/[0.03] overflow-hidden">
+                        <div className="rounded-xl border border-brand-gold/15 bg-brand-gold/[0.03]">
                             <div className="flex items-center justify-between px-3 py-2 border-b border-brand-gold/10">
                                 <span className="text-[9px] font-semibold text-brand-gold/40">
                                     {selectedYear} vs {compareYear || '—'}
@@ -913,25 +913,25 @@ export default function Dashboard() {
                                 {loadingCompare && <Loader2 size={10} className="animate-spin text-brand-gold/40" />}
                             </div>
                             {compareMetrics ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-brand-gold/10">
+                                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 min-[420px]:divide-x divide-brand-gold/10">
                                     {/* Stock cell */}
                                     <div className="px-3 py-3 flex flex-col gap-1 min-w-0">
                                         <div className="flex items-center gap-1.5 mb-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                             <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Stock</span>
                                         </div>
-                                        <div className="flex flex-col gap-1 min-w-0">
-                                            <div className="flex items-baseline justify-between gap-2 min-w-0">
+                                        <div className="flex flex-col gap-1.5 min-w-0">
+                                            <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
                                                 <span className="text-[8px] text-white/30 tabular-nums shrink-0">{selectedYear}</span>
-                                                <span className="text-[clamp(10px,2.4vw,11px)] font-black text-white/75 tabular-nums text-right min-w-0 break-all">{fmtNum(metrics.carbonStock)}</span>
+                                                <span className="text-[clamp(10px,2.4vw,11px)] leading-tight font-black text-white/75 tabular-nums text-right min-w-0 break-words">{fmtNum(metrics.carbonStock)}</span>
                                             </div>
-                                            <div className="flex items-baseline justify-between gap-2 min-w-0">
+                                            <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
                                                 <span className="text-[8px] text-white/30 tabular-nums shrink-0">{compareYear}</span>
-                                                <span className="text-[clamp(9px,2.2vw,10px)] font-bold text-white/40 tabular-nums text-right min-w-0 break-all">{fmtNum(compareMetrics.carbonStock)}</span>
+                                                <span className="text-[clamp(9px,2.2vw,10px)] leading-tight font-bold text-white/40 tabular-nums text-right min-w-0 break-words">{fmtNum(compareMetrics.carbonStock)}</span>
                                             </div>
                                         </div>
                                         {stockDelta !== null && (
-                                            <div className={`flex flex-wrap items-center gap-x-1 gap-y-0.5 mt-1 pt-1 border-t border-white/5 text-[8px] sm:text-[9px] font-bold tabular-nums ${stockDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            <div className={`flex flex-wrap items-center gap-x-1 gap-y-0.5 mt-1 pt-1 border-t border-white/5 text-[8px] sm:text-[9px] leading-tight font-bold tabular-nums ${stockDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                                 {stockDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} className="shrink-0" /> : <ArrowDown size={9} strokeWidth={2.5} className="shrink-0" />}
                                                 <span>{Math.abs(stockDelta).toFixed(1)}%</span>
                                                 <span className="text-current/80">{stockDelta >= 0 ? 'increase' : 'decrease'}</span>
@@ -939,23 +939,23 @@ export default function Dashboard() {
                                         )}
                                     </div>
                                     {/* Loss cell */}
-                                    <div className="px-3 py-3 flex flex-col gap-1 min-w-0 border-t border-brand-gold/10 sm:border-t-0">
+                                    <div className="px-3 py-3 flex flex-col gap-1 min-w-0 border-t border-brand-gold/10 min-[420px]:border-t-0">
                                         <div className="flex items-center gap-1.5 mb-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
                                             <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Loss</span>
                                         </div>
-                                        <div className="flex flex-col gap-1 min-w-0">
-                                            <div className="flex items-baseline justify-between gap-2 min-w-0">
+                                        <div className="flex flex-col gap-1.5 min-w-0">
+                                            <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
                                                 <span className="text-[8px] text-white/30 tabular-nums shrink-0">{selectedYear}</span>
-                                                <span className="text-[clamp(10px,2.4vw,11px)] font-black text-white/75 tabular-nums text-right min-w-0 break-all">{fmtNum(metrics.carbonLoss)}</span>
+                                                <span className="text-[clamp(10px,2.4vw,11px)] leading-tight font-black text-white/75 tabular-nums text-right min-w-0 break-words">{fmtNum(metrics.carbonLoss)}</span>
                                             </div>
-                                            <div className="flex items-baseline justify-between gap-2 min-w-0">
+                                            <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
                                                 <span className="text-[8px] text-white/30 tabular-nums shrink-0">{compareYear}</span>
-                                                <span className="text-[clamp(9px,2.2vw,10px)] font-bold text-white/40 tabular-nums text-right min-w-0 break-all">{fmtNum(compareMetrics.carbonLoss)}</span>
+                                                <span className="text-[clamp(9px,2.2vw,10px)] leading-tight font-bold text-white/40 tabular-nums text-right min-w-0 break-words">{fmtNum(compareMetrics.carbonLoss)}</span>
                                             </div>
                                         </div>
                                         {lossDelta !== null && (
-                                            <div className={`flex flex-wrap items-center gap-x-1 gap-y-0.5 mt-1 pt-1 border-t border-white/5 text-[8px] sm:text-[9px] font-bold tabular-nums ${lossDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            <div className={`flex flex-wrap items-center gap-x-1 gap-y-0.5 mt-1 pt-1 border-t border-white/5 text-[8px] sm:text-[9px] leading-tight font-bold tabular-nums ${lossDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                                 {lossDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} className="shrink-0" /> : <ArrowDown size={9} strokeWidth={2.5} className="shrink-0" />}
                                                 <span>{Math.abs(lossDelta).toFixed(1)}%</span>
                                                 <span className="text-current/80">{lossDelta >= 0 ? 'increase' : 'decrease'}</span>

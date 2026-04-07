@@ -14,7 +14,6 @@ import { GlassPanel } from './GlassPanel';
 import { LegendPanel } from './LegendPanel';
 import { TourGuide } from './TourGuide';
 import { KPI } from './KPI';
-import { CarbonBalanceChart } from './SunburstChart';
 import { LossChart } from './LossChart';
 
 // ─── Data source metadata for each layer ────────────────────────────────────
@@ -54,39 +53,43 @@ const LAYER_INFO = {
 };
 
 // ─── Contextual insights derived from current metrics ───────────────────────
-function computeInsights(metrics, selectedYear, selectedRegion, selectedDistrict) {
-    const insights = [];
+function computeTakeaway(metrics, selectedYear, selectedRegion, selectedDistrict) {
     const { carbonStock, carbonLoss, prevCarbonLoss } = metrics;
 
     if (prevCarbonLoss > 0 && carbonLoss > 0) {
         const change = ((carbonLoss - prevCarbonLoss) / prevCarbonLoss) * 100;
         if (Math.abs(change) > 3) {
-            insights.push({
+            return {
                 type: change > 0 ? 'warning' : 'good',
                 text: change > 0
-                    ? `Mining-related loss increased by ${change.toFixed(0)}% relative to ${(selectedYear || 2024) - 1}`
-                    : `Mining-related loss decreased by ${Math.abs(change).toFixed(0)}% relative to ${(selectedYear || 2024) - 1}`,
-            });
-        } else {
-            insights.push({ type: 'neutral', text: `Mining-related loss was broadly unchanged from ${(selectedYear || 2024) - 1}` });
+                    ? `Mining-related loss increased by ${change.toFixed(0)}% relative to ${(selectedYear || 2024) - 1}.`
+                    : `Mining-related loss decreased by ${Math.abs(change).toFixed(0)}% relative to ${(selectedYear || 2024) - 1}.`,
+            };
         }
+
+        return {
+            type: 'neutral',
+            text: `Mining-related loss was broadly unchanged from ${(selectedYear || 2024) - 1}.`,
+        };
     }
 
     if (carbonStock > 0 && carbonLoss > 0) {
         const ratio = (carbonLoss / carbonStock) * 100;
-        insights.push({
+        return {
             type: ratio > 1.5 ? 'warning' : 'good',
-            text: `Estimated loss equals ${ratio.toFixed(ratio > 1.5 ? 1 : 2)}% of total forest carbon stock`,
-        });
+            text: `Estimated loss equals ${ratio.toFixed(ratio > 1.5 ? 1 : 2)}% of total forest carbon stock.`,
+        };
     }
 
     if (!selectedRegion) {
-        insights.push({ type: 'info', text: 'Select a region to view district-level results' });
-    } else if (!selectedDistrict) {
-        insights.push({ type: 'info', text: `Regional totals currently include all districts in ${selectedRegion}` });
+        return { type: 'info', text: 'Select a region to view district-level results.' };
     }
 
-    return insights.slice(0, 3);
+    if (!selectedDistrict) {
+        return { type: 'info', text: `Regional totals currently include all districts in ${selectedRegion}.` };
+    }
+
+    return { type: 'neutral', text: `Showing district-level results for ${selectedDistrict} in ${selectedYear}.` };
 }
 
 const MapComponent = dynamic(() => import('./Map'), {
@@ -220,8 +223,8 @@ export default function Dashboard() {
         ? ((selectedYear - years[0]) / (years[years.length - 1] - years[0])) * 100
         : 0;
 
-    const insights = useMemo(
-        () => computeInsights(metrics, selectedYear, selectedRegion, selectedDistrict),
+    const takeaway = useMemo(
+        () => computeTakeaway(metrics, selectedYear, selectedRegion, selectedDistrict),
         [metrics, selectedYear, selectedRegion, selectedDistrict]
     );
 
@@ -512,13 +515,13 @@ export default function Dashboard() {
     ].join(' ');
 
     // Insight chip styles
-    const insightStyle = {
+    const takeawayStyle = {
         warning: 'border-red-500/20 bg-red-500/5',
         good:    'border-emerald-500/20 bg-emerald-500/5',
         neutral: 'border-white/8 bg-white/3',
         info:    'border-brand-gold/15 bg-brand-gold/4',
     };
-    const insightDot = {
+    const takeawayDot = {
         warning: 'bg-red-500',
         good:    'bg-emerald-500',
         neutral: 'bg-white/30',
@@ -764,15 +767,13 @@ export default function Dashboard() {
                     </div>
 
                     {/* ── Quick Insights (A) ──────────────────────── */}
-                    {!loadingMetrics && (metrics.carbonStock > 0 || metrics.carbonLoss > 0) && (
+                    {!loadingMetrics && takeaway && (
                         <div className="flex flex-col gap-2">
-                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Summary</span>
-                            {insights.map((insight, i) => (
-                                <div key={i} className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${insightStyle[insight.type]}`}>
-                                    <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${insightDot[insight.type]}`} />
-                                    <span className="text-[10px] font-medium text-white/55 leading-snug">{insight.text}</span>
-                                </div>
-                            ))}
+                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Takeaway</span>
+                            <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${takeawayStyle[takeaway.type]}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${takeawayDot[takeaway.type]}`} />
+                                <span className="text-[10px] font-medium text-white/55 leading-snug">{takeaway.text}</span>
+                            </div>
                         </div>
                     )}
 
@@ -979,19 +980,6 @@ export default function Dashboard() {
                         <LossChart data={metrics.trend} loading={loadingMetrics} />
                     </div>
 
-                    <div className="h-px bg-white/5 w-full" />
-
-                    {/* Carbon balance */}
-                    <div className="flex flex-col gap-3 flex-1 min-h-0">
-                        <span className="text-[9px] font-semibold text-white/30">
-                            Carbon Balance · {selectedYear}
-                        </span>
-                        <CarbonBalanceChart
-                            carbonStock={metrics.carbonStock}
-                            carbonLoss={metrics.carbonLoss}
-                            loading={loadingMetrics}
-                        />
-                    </div>
                 </div>
 
                 {/* Status bar */}

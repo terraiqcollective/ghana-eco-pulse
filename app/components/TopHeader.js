@@ -1,5 +1,6 @@
 import React from 'react';
 import { MapPin, Calendar, RotateCcw, HelpCircle } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 
 export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset, onTour }) => {
     const scopeLabel = selectedDistrict || selectedRegion || null;
@@ -8,18 +9,15 @@ export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onRe
         <header className="absolute top-0 left-0 right-0 z-40 h-16 bg-brand-deep/95 backdrop-blur-md border-b border-brand-gold/20 flex items-center justify-between px-6 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
             {/* Branding */}
             <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded border border-brand-gold/35 bg-brand-deep/40 flex flex-col items-center justify-center shrink-0">
-                    <span className="text-[8px] font-bold tracking-[0.22em] text-brand-gold/80 leading-none">GE</span>
-                    <span className="text-[7px] font-medium tracking-[0.18em] text-white/45 leading-none mt-1">LAB</span>
-                </div>
+                <BrandMark className="w-10 h-10 shrink-0 rounded-[10px]" />
                 <div>
                     <div className="flex items-center gap-2">
                         <h1 className="text-white text-base font-semibold tracking-[0.08em] uppercase leading-none">
-                            Ghana <span className="text-brand-gold">Eco Pulse</span>
+                            <span className="text-white/92">Eco</span> <span className="text-brand-gold">Pulse</span>
                         </h1>
                     </div>
                     <p className="text-[8px] text-white/30 font-medium mt-0.5 tracking-[0.16em] uppercase">
-                        Forest Carbon and Mining Analytics
+                        Forest Carbon Monitoring
                     </p>
                 </div>
             </div>

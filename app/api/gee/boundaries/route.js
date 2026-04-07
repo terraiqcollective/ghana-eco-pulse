@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { initializeEE, getEE, getConfig } from '@/lib/gee-server';
 
-export async function GET() {
-    try {
+export const revalidate = 21600;
+
+const getCachedBoundaries = unstable_cache(
+    async () => {
         await initializeEE();
         const ee = getEE();
         const config = getConfig();
 
         if (!config.FULL_DISTRICTS_FC || !config.FULL_REGIONS_FC) {
-            return NextResponse.json(
-                { error: 'Boundary assets not configured' },
-                { status: 500 }
-            );
+            throw new Error('Boundary assets not configured');
         }
 
         const [districts, regions] = await Promise.all([
@@ -33,7 +33,16 @@ export async function GET() {
             }),
         ]);
 
-        return NextResponse.json({ districts, regions });
+        return { districts, regions };
+    },
+    ['gee-boundaries'],
+    { revalidate: 21600 }
+);
+
+export async function GET() {
+    try {
+        const data = await getCachedBoundaries();
+        return NextResponse.json(data);
 
     } catch (error) {
         console.error('GEE Boundaries Error:', error);

@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { initializeEE, getEE, getConfig } from '@/lib/gee-server';
 
-export async function GET() {
-    try {
+export const revalidate = 21600;
+
+const getCachedMetadata = unstable_cache(
+    async () => {
         await initializeEE();
         const ee = getEE();
         const config = getConfig();
 
         const carbonFc = ee.FeatureCollection(config.CARBON_FC);
-        const miningFc = ee.FeatureCollection(config.MINING_FC);
 
-        // Get metadata
         const [yearProps, regions] = await Promise.all([
             new Promise((res, rej) => {
                 carbonFc.first().propertyNames().evaluate((props, err) => {
@@ -26,10 +27,19 @@ export async function GET() {
             })
         ]);
 
-        return NextResponse.json({
+        return {
             years: yearProps,
             regions
-        });
+        };
+    },
+    ['gee-metadata'],
+    { revalidate: 21600 }
+);
+
+export async function GET() {
+    try {
+        const data = await getCachedMetadata();
+        return NextResponse.json(data);
 
     } catch (error) {
         console.error('GEE Metadata Error:', error);

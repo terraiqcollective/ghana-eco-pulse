@@ -6,7 +6,7 @@ import {
     Plus, Minus, Map as MapIcon, Menu,
     ChevronLeft, ChevronRight, BarChart3,
     AlertTriangle, X, TreePine, Pickaxe, RotateCcw,
-    Loader2, Database
+    Loader2, Database, ArrowUp, ArrowDown
 } from 'lucide-react';
 
 import { TopHeader } from './TopHeader';
@@ -916,28 +916,50 @@ export default function Dashboard() {
                             </div>
                             {compareMetrics ? (
                                 <div className="grid grid-cols-2 divide-x divide-brand-gold/10">
+                                    {/* Stock cell */}
                                     <div className="px-3 py-3 flex flex-col gap-1">
-                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                        <div className="flex items-center gap-1.5 mb-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                             <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Stock</span>
                                         </div>
-                                        <span className="text-[11px] font-black text-white/75 tabular-nums">{fmtNum(metrics.carbonStock)}</span>
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-baseline justify-between gap-1">
+                                                <span className="text-[8px] text-white/30 tabular-nums">{selectedYear}</span>
+                                                <span className="text-[11px] font-black text-white/75 tabular-nums">{fmtNum(metrics.carbonStock)}</span>
+                                            </div>
+                                            <div className="flex items-baseline justify-between gap-1">
+                                                <span className="text-[8px] text-white/30 tabular-nums">{compareYear}</span>
+                                                <span className="text-[10px] font-bold text-white/40 tabular-nums">{fmtNum(compareMetrics.carbonStock)}</span>
+                                            </div>
+                                        </div>
                                         {stockDelta !== null && (
-                                            <span className={`text-[9px] font-bold tabular-nums ${stockDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {stockDelta >= 0 ? '+' : ''}{stockDelta.toFixed(1)}%
-                                            </span>
+                                            <div className={`flex items-center gap-0.5 mt-1 pt-1 border-t border-white/5 text-[9px] font-bold tabular-nums ${stockDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {stockDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} /> : <ArrowDown size={9} strokeWidth={2.5} />}
+                                                {Math.abs(stockDelta).toFixed(1)}% {stockDelta >= 0 ? 'increase' : 'decrease'}
+                                            </div>
                                         )}
                                     </div>
+                                    {/* Loss cell */}
                                     <div className="px-3 py-3 flex flex-col gap-1">
-                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                        <div className="flex items-center gap-1.5 mb-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
                                             <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Loss</span>
                                         </div>
-                                        <span className="text-[11px] font-black text-white/75 tabular-nums">{fmtNum(metrics.carbonLoss)}</span>
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-baseline justify-between gap-1">
+                                                <span className="text-[8px] text-white/30 tabular-nums">{selectedYear}</span>
+                                                <span className="text-[11px] font-black text-white/75 tabular-nums">{fmtNum(metrics.carbonLoss)}</span>
+                                            </div>
+                                            <div className="flex items-baseline justify-between gap-1">
+                                                <span className="text-[8px] text-white/30 tabular-nums">{compareYear}</span>
+                                                <span className="text-[10px] font-bold text-white/40 tabular-nums">{fmtNum(compareMetrics.carbonLoss)}</span>
+                                            </div>
+                                        </div>
                                         {lossDelta !== null && (
-                                            <span className={`text-[9px] font-bold tabular-nums ${lossDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {lossDelta >= 0 ? '+' : ''}{lossDelta.toFixed(1)}%
-                                            </span>
+                                            <div className={`flex items-center gap-0.5 mt-1 pt-1 border-t border-white/5 text-[9px] font-bold tabular-nums ${lossDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {lossDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} /> : <ArrowDown size={9} strokeWidth={2.5} />}
+                                                {Math.abs(lossDelta).toFixed(1)}% {lossDelta >= 0 ? 'increase' : 'decrease'}
+                                            </div>
                                         )}
                                     </div>
                                 </div>

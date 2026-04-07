@@ -64,11 +64,11 @@ function computeInsights(metrics, selectedYear, selectedRegion, selectedDistrict
             insights.push({
                 type: change > 0 ? 'warning' : 'good',
                 text: change > 0
-                    ? `Mining loss rose ${change.toFixed(0)}% vs ${(selectedYear || 2024) - 1}`
-                    : `Loss fell ${Math.abs(change).toFixed(0)}% from ${(selectedYear || 2024) - 1}`,
+                    ? `Mining-related loss increased by ${change.toFixed(0)}% relative to ${(selectedYear || 2024) - 1}`
+                    : `Mining-related loss decreased by ${Math.abs(change).toFixed(0)}% relative to ${(selectedYear || 2024) - 1}`,
             });
         } else {
-            insights.push({ type: 'neutral', text: `Loss held steady vs ${(selectedYear || 2024) - 1}` });
+            insights.push({ type: 'neutral', text: `Mining-related loss was broadly unchanged from ${(selectedYear || 2024) - 1}` });
         }
     }
 
@@ -76,16 +76,14 @@ function computeInsights(metrics, selectedYear, selectedRegion, selectedDistrict
         const ratio = (carbonLoss / carbonStock) * 100;
         insights.push({
             type: ratio > 1.5 ? 'warning' : 'good',
-            text: ratio > 1.5
-                ? `${ratio.toFixed(1)}% of forest stock lost to mining`
-                : `Loss is ${ratio.toFixed(2)}% of total forest stock`,
+            text: `Estimated loss equals ${ratio.toFixed(ratio > 1.5 ? 1 : 2)}% of total forest carbon stock`,
         });
     }
 
     if (!selectedRegion) {
-        insights.push({ type: 'info', text: 'Select a region for district-level data' });
+        insights.push({ type: 'info', text: 'Select a region to view district-level results' });
     } else if (!selectedDistrict) {
-        insights.push({ type: 'info', text: `Showing all districts in ${selectedRegion}` });
+        insights.push({ type: 'info', text: `Regional totals currently include all districts in ${selectedRegion}` });
     }
 
     return insights.slice(0, 3);
@@ -97,7 +95,7 @@ const MapComponent = dynamic(() => import('./Map'), {
         <div className="h-full w-full bg-brand-deep flex items-center justify-center text-brand-gold">
             <div className="flex items-center gap-3 animate-pulse">
                 <Loader2 size={18} className="animate-spin" />
-                <span className="text-[11px] font-black uppercase tracking-widest">Loading Map...</span>
+                <span className="text-[11px] font-black uppercase tracking-widest">Loading Layers...</span>
             </div>
         </div>
     )
@@ -443,7 +441,7 @@ export default function Dashboard() {
                     </div>
                     {/* Text */}
                     <div className="text-center">
-                        <p className="text-white text-sm font-semibold tracking-wide">Reading the canopy...</p>
+                        <p className="text-white text-sm font-semibold tracking-wide">Loading dashboard data...</p>
                     </div>
                 </div>
             </div>
@@ -577,8 +575,8 @@ export default function Dashboard() {
                     {/* Header */}
                     <div className="flex justify-between items-start">
                         <div>
-                            <h2 className="text-white text-sm font-bold leading-none">Filter & Explore</h2>
-                            <p className="text-[9px] text-white/25 mt-1 font-medium">Ghana forest carbon data</p>
+                            <h2 className="text-white text-sm font-bold leading-none">Filters</h2>
+                            <p className="text-[9px] text-white/25 mt-1 font-medium">Ghana forest carbon and mining data</p>
                         </div>
                         <button
                             onClick={() => isMobile ? setMobilePanel(null) : setIsLeftCollapsed(true)}
@@ -593,7 +591,7 @@ export default function Dashboard() {
                         <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                             <AlertTriangle size={13} className="text-red-400 shrink-0 mt-0.5" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-bold text-red-400 mb-0.5">Connection failed</p>
+                                <p className="text-[9px] font-bold text-red-400 mb-0.5">Data connection error</p>
                                 <p className="text-[10px] text-red-300/70 leading-snug">{metadataError}</p>
                             </div>
                             <button onClick={() => setMetadataError(null)} className="shrink-0 text-red-400/50 hover:text-red-400 transition-colors">
@@ -741,8 +739,8 @@ export default function Dashboard() {
                     <div id="tour-year-comparison" className="flex flex-col gap-2.5">
                         <div className="flex items-start justify-between gap-3">
                             <div>
-                                <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest block leading-none">Year Comparison</span>
-                                <p className="text-[9px] text-white/18 mt-1 leading-snug">Overlay a second year in the stats panel</p>
+                                <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest block leading-none">Comparison</span>
+                                <p className="text-[9px] text-white/18 mt-1 leading-snug">Compare the selected year with another reporting year</p>
                             </div>
                             <button
                                 onClick={() => { setCompareMode(!compareMode); if (compareMode) setCompareMetrics(null); }}
@@ -757,7 +755,7 @@ export default function Dashboard() {
                                 onChange={(e) => setCompareYear(parseInt(e.target.value))}
                                 className="w-full bg-brand-deep/40 border border-brand-gold/20 rounded px-3 py-2 text-xs font-bold text-white outline-none focus:border-brand-gold/60 appearance-none cursor-pointer h-10"
                             >
-                                <option value="" className="bg-brand-deep">Choose comparison year</option>
+                                <option value="" className="bg-brand-deep">Select comparison year</option>
                                 {years.filter(y => parseInt(y) !== selectedYear).map(y => (
                                     <option key={y} value={y} className="bg-brand-deep">{y}</option>
                                 ))}
@@ -768,7 +766,7 @@ export default function Dashboard() {
                     {/* ── Quick Insights (A) ──────────────────────── */}
                     {!loadingMetrics && (metrics.carbonStock > 0 || metrics.carbonLoss > 0) && (
                         <div className="flex flex-col gap-2">
-                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Insights</span>
+                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Summary</span>
                             {insights.map((insight, i) => (
                                 <div key={i} className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${insightStyle[insight.type]}`}>
                                     <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${insightDot[insight.type]}`} />
@@ -816,7 +814,7 @@ export default function Dashboard() {
                             className="w-full flex items-center justify-center gap-2 py-2.5 rounded border border-white/8 hover:border-red-500/30 text-white/25 hover:text-red-400 text-[10px] font-semibold transition-all cursor-pointer group"
                         >
                             <RotateCcw size={11} className="group-hover:rotate-[-360deg] transition-transform duration-500" />
-                            Reset to Default
+                            Restore Default View
                         </button>
 
                         {/* Legend toggle */}
@@ -865,7 +863,7 @@ export default function Dashboard() {
                         <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                             <AlertTriangle size={13} className="text-red-400 shrink-0 mt-0.5" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-bold text-red-400 mb-0.5">Metrics unavailable</p>
+                                <p className="text-[9px] font-bold text-red-400 mb-0.5">Unable to load metrics</p>
                                 <p className="text-[10px] text-red-300/70 leading-snug">{metricsError}</p>
                             </div>
                             <button onClick={() => setMetricsError(null)} className="shrink-0 text-red-400/50 hover:text-red-400 transition-colors">
@@ -879,7 +877,7 @@ export default function Dashboard() {
                         {loadingMetrics && (
                             <div className="flex items-center justify-center gap-2 py-1">
                                 <Loader2 size={12} className="animate-spin text-brand-gold/50" />
-                                <span className="text-[9px] font-medium text-brand-gold/40">Calculating...</span>
+                                <span className="text-[9px] font-medium text-brand-gold/40">Updating values...</span>
                             </div>
                         )}
                         <KPI
@@ -915,57 +913,59 @@ export default function Dashboard() {
                                 {loadingCompare && <Loader2 size={10} className="animate-spin text-brand-gold/40" />}
                             </div>
                             {compareMetrics ? (
-                                <div className="grid grid-cols-2 divide-x divide-brand-gold/10">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x divide-brand-gold/10">
                                     {/* Stock cell */}
-                                    <div className="px-3 py-3 flex flex-col gap-1">
+                                    <div className="px-3 py-3 flex flex-col gap-1 min-w-0">
                                         <div className="flex items-center gap-1.5 mb-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                             <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Stock</span>
                                         </div>
-                                        <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-baseline justify-between gap-1">
-                                                <span className="text-[8px] text-white/30 tabular-nums">{selectedYear}</span>
-                                                <span className="text-[11px] font-black text-white/75 tabular-nums">{fmtNum(metrics.carbonStock)}</span>
+                                        <div className="flex flex-col gap-1 min-w-0">
+                                            <div className="flex items-baseline justify-between gap-2 min-w-0">
+                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{selectedYear}</span>
+                                                <span className="text-[clamp(10px,2.4vw,11px)] font-black text-white/75 tabular-nums text-right min-w-0 break-all">{fmtNum(metrics.carbonStock)}</span>
                                             </div>
-                                            <div className="flex items-baseline justify-between gap-1">
-                                                <span className="text-[8px] text-white/30 tabular-nums">{compareYear}</span>
-                                                <span className="text-[10px] font-bold text-white/40 tabular-nums">{fmtNum(compareMetrics.carbonStock)}</span>
+                                            <div className="flex items-baseline justify-between gap-2 min-w-0">
+                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{compareYear}</span>
+                                                <span className="text-[clamp(9px,2.2vw,10px)] font-bold text-white/40 tabular-nums text-right min-w-0 break-all">{fmtNum(compareMetrics.carbonStock)}</span>
                                             </div>
                                         </div>
                                         {stockDelta !== null && (
-                                            <div className={`flex items-center gap-0.5 mt-1 pt-1 border-t border-white/5 text-[9px] font-bold tabular-nums ${stockDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {stockDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} /> : <ArrowDown size={9} strokeWidth={2.5} />}
-                                                {Math.abs(stockDelta).toFixed(1)}% {stockDelta >= 0 ? 'increase' : 'decrease'}
+                                            <div className={`flex flex-wrap items-center gap-x-1 gap-y-0.5 mt-1 pt-1 border-t border-white/5 text-[8px] sm:text-[9px] font-bold tabular-nums ${stockDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {stockDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} className="shrink-0" /> : <ArrowDown size={9} strokeWidth={2.5} className="shrink-0" />}
+                                                <span>{Math.abs(stockDelta).toFixed(1)}%</span>
+                                                <span className="text-current/80">{stockDelta >= 0 ? 'increase' : 'decrease'}</span>
                                             </div>
                                         )}
                                     </div>
                                     {/* Loss cell */}
-                                    <div className="px-3 py-3 flex flex-col gap-1">
+                                    <div className="px-3 py-3 flex flex-col gap-1 min-w-0 border-t border-brand-gold/10 sm:border-t-0">
                                         <div className="flex items-center gap-1.5 mb-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
                                             <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Loss</span>
                                         </div>
-                                        <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-baseline justify-between gap-1">
-                                                <span className="text-[8px] text-white/30 tabular-nums">{selectedYear}</span>
-                                                <span className="text-[11px] font-black text-white/75 tabular-nums">{fmtNum(metrics.carbonLoss)}</span>
+                                        <div className="flex flex-col gap-1 min-w-0">
+                                            <div className="flex items-baseline justify-between gap-2 min-w-0">
+                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{selectedYear}</span>
+                                                <span className="text-[clamp(10px,2.4vw,11px)] font-black text-white/75 tabular-nums text-right min-w-0 break-all">{fmtNum(metrics.carbonLoss)}</span>
                                             </div>
-                                            <div className="flex items-baseline justify-between gap-1">
-                                                <span className="text-[8px] text-white/30 tabular-nums">{compareYear}</span>
-                                                <span className="text-[10px] font-bold text-white/40 tabular-nums">{fmtNum(compareMetrics.carbonLoss)}</span>
+                                            <div className="flex items-baseline justify-between gap-2 min-w-0">
+                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{compareYear}</span>
+                                                <span className="text-[clamp(9px,2.2vw,10px)] font-bold text-white/40 tabular-nums text-right min-w-0 break-all">{fmtNum(compareMetrics.carbonLoss)}</span>
                                             </div>
                                         </div>
                                         {lossDelta !== null && (
-                                            <div className={`flex items-center gap-0.5 mt-1 pt-1 border-t border-white/5 text-[9px] font-bold tabular-nums ${lossDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {lossDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} /> : <ArrowDown size={9} strokeWidth={2.5} />}
-                                                {Math.abs(lossDelta).toFixed(1)}% {lossDelta >= 0 ? 'increase' : 'decrease'}
+                                            <div className={`flex flex-wrap items-center gap-x-1 gap-y-0.5 mt-1 pt-1 border-t border-white/5 text-[8px] sm:text-[9px] font-bold tabular-nums ${lossDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {lossDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} className="shrink-0" /> : <ArrowDown size={9} strokeWidth={2.5} className="shrink-0" />}
+                                                <span>{Math.abs(lossDelta).toFixed(1)}%</span>
+                                                <span className="text-current/80">{lossDelta >= 0 ? 'increase' : 'decrease'}</span>
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             ) : (
                                 <div className="px-3 py-4 text-center text-[9px] text-white/20 font-medium">
-                                    {loadingCompare ? 'Loading...' : compareYear ? 'No data for selected year' : 'Pick a year in the Filters panel'}
+                                    {loadingCompare ? 'Loading comparison...' : compareYear ? 'No comparison data available for the selected year' : 'Select a comparison year in the filters panel'}
                                 </div>
                             )}
                         </div>

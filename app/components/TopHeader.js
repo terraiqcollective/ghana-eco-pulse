@@ -1,28 +1,25 @@
 import React from 'react';
-import { ShieldCheck, MapPin, Calendar, RotateCcw, HelpCircle } from 'lucide-react';
+import { MapPin, Calendar, RotateCcw, HelpCircle } from 'lucide-react';
 
 export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset, onTour }) => {
     const scopeLabel = selectedDistrict || selectedRegion || null;
 
     return (
-        <header className="absolute top-0 left-0 right-0 z-40 h-16 bg-brand-deep/95 backdrop-blur-md border-b border-brand-gold/30 flex items-center justify-between px-6 shadow-2xl">
+        <header className="absolute top-0 left-0 right-0 z-40 h-16 bg-brand-deep/95 backdrop-blur-md border-b border-brand-gold/20 flex items-center justify-between px-6 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
             {/* Branding */}
             <div className="flex items-center gap-3.5">
-                <div className="bg-brand-gold p-2 rounded shadow-lg shadow-brand-gold/30 ring-1 ring-brand-gold/50 shrink-0">
-                    <ShieldCheck className="text-brand-deep w-5 h-5" />
+                <div className="w-10 h-10 rounded border border-brand-gold/35 bg-brand-deep/40 flex flex-col items-center justify-center shrink-0">
+                    <span className="text-[8px] font-bold tracking-[0.22em] text-brand-gold/80 leading-none">GE</span>
+                    <span className="text-[7px] font-medium tracking-[0.18em] text-white/45 leading-none mt-1">LAB</span>
                 </div>
                 <div>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-white text-base font-extrabold tracking-tighter uppercase leading-none">
-                            EcoPulse <span className="text-brand-gold">Ghana</span>
+                        <h1 className="text-white text-base font-semibold tracking-[0.08em] uppercase leading-none">
+                            Ghana <span className="text-brand-gold">Eco Pulse</span>
                         </h1>
-                        <span className="flex items-center gap-1 text-[8px] px-1.5 py-0.5 rounded border border-emerald-500/30 text-emerald-400/70 font-semibold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Live
-                        </span>
                     </div>
-                    <p className="text-[8px] text-white/25 font-medium mt-0.5 tracking-wide">
-                        Forest Carbon Monitoring
+                    <p className="text-[8px] text-white/30 font-medium mt-0.5 tracking-[0.16em] uppercase">
+                        Forest Carbon and Mining Analytics
                     </p>
                 </div>
             </div>
@@ -33,17 +30,17 @@ export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onRe
                 {(selectedYear || scopeLabel) && (
                     <div className="hidden sm:flex items-center gap-2">
                         {selectedYear && (
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/8 border border-brand-gold/20 rounded">
-                                <Calendar size={11} className="text-brand-gold/60" />
-                                <span className="text-[10px] font-bold text-brand-gold tabular-nums tracking-widest">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-white/10 rounded">
+                                <Calendar size={11} className="text-white/40" />
+                                <span className="text-[10px] font-semibold text-white/70 tabular-nums tracking-widest">
                                     {selectedYear}
                                 </span>
                             </div>
                         )}
                         {scopeLabel && (
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-gold/8 border border-brand-gold/20 rounded max-w-[200px]">
-                                <MapPin size={11} className="text-brand-gold/60 shrink-0" />
-                                <span className="text-[10px] font-bold text-brand-gold tracking-wider truncate">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-white/10 rounded max-w-[200px]">
+                                <MapPin size={11} className="text-white/40 shrink-0" />
+                                <span className="text-[10px] font-semibold text-white/70 tracking-wider truncate">
                                     {scopeLabel}
                                 </span>
                             </div>
@@ -55,11 +52,11 @@ export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onRe
                 {onTour && (
                     <button
                         onClick={onTour}
-                        title="Portal guide"
-                        className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-brand-gold/30 text-white/20 hover:text-brand-gold/70 transition-all duration-200"
+                        title="Help"
+                        className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-white/20 text-white/25 hover:text-white/60 transition-all duration-200"
                     >
                         <HelpCircle size={11} />
-                        <span className="text-[9px] font-semibold hidden sm:block">Guide</span>
+                        <span className="text-[9px] font-semibold hidden sm:block">Help</span>
                     </button>
                 )}
 

@@ -338,7 +338,7 @@ export default function MapComponent({
                             </svg>
                         </div>
                     </div>
-                    <p className="mt-4 text-[10px] font-semibold text-brand-gold/60 tracking-wider">Reading the canopy...</p>
+                    <p className="mt-4 text-[10px] font-semibold text-brand-gold/60 tracking-wider">Updating map layers...</p>
                 </div>
             )}
             <MapContainer

@@ -6,13 +6,14 @@ import {
     Plus, Minus, Map as MapIcon, Menu,
     ChevronLeft, ChevronRight, BarChart3,
     AlertTriangle, X, TreePine, Pickaxe, RotateCcw,
-    Loader2, Database, ArrowUp, ArrowDown
+    Loader2, Database, ArrowUp, ArrowDown, Layers
 } from 'lucide-react';
 
 import { TopHeader } from './TopHeader';
 import { GlassPanel } from './GlassPanel';
 import { LegendPanel } from './LegendPanel';
 import { TourGuide } from './TourGuide';
+import { AboutModal } from './AboutModal';
 import { KPI } from './KPI';
 import { LossChart } from './LossChart';
 
@@ -107,8 +108,8 @@ const MapComponent = dynamic(() => import('./Map'), {
 export default function Dashboard() {
     // Layout
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
-    const [isRightCollapsed, setIsRightCollapsed] = useState(false);
-    const [isLegendOpen, setIsLegendOpen] = useState(true);
+    const [isRightCollapsed, setIsRightCollapsed] = useState(true);
+    const [isLegendOpen, setIsLegendOpen] = useState(false);
     const [tourTrigger, setTourTrigger] = useState(false);
 
     // Mobile
@@ -200,7 +201,8 @@ export default function Dashboard() {
         setMetadataError(null);
         setMetricsError(null);
         setDistrictsError(null);
-        setIsLegendOpen(true);
+        setIsRightCollapsed(true);
+        setIsLegendOpen(false);
         if (years.length > 0) setSelectedYear(parseInt(years[years.length - 1]));
         setMapCommand({ type: 'reset', t: Date.now() });
     }, [years]);
@@ -426,6 +428,14 @@ export default function Dashboard() {
                 : prev;
         });
     }, [selectedDistrict]);
+
+    // Auto-open right panel and legend when real metrics arrive
+    useEffect(() => {
+        if (metrics.carbonStock > 0 || metrics.carbonLoss > 0) {
+            setIsRightCollapsed(false);
+            setIsLegendOpen(true);
+        }
+    }, [metrics.carbonStock, metrics.carbonLoss]);
 
     // ─── Initial loading screen ──────────────────────────────────────────────
     if (loading) {
@@ -777,34 +787,6 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {/* ── Data Sources (B) ────────────────────────── */}
-                    {selectedLayers.filter(id => LAYER_INFO[id]).length > 0 && (
-                        <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-1.5">
-                                <Database size={9} className="text-white/20" />
-                                <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Data Sources</span>
-                            </div>
-                            {selectedLayers.filter(id => LAYER_INFO[id]).map(layerId => {
-                                const info = LAYER_INFO[layerId];
-                                return (
-                                    <div key={layerId} className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                                        <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${info.dot}`} />
-                                        <div className="flex flex-col gap-1.5 min-w-0">
-                                            <span className="text-[10px] font-semibold text-white/55 leading-none">{info.name}</span>
-                                            <span className="text-[9px] text-white/25 leading-snug">{info.source}</span>
-                                            <div className="flex gap-1 flex-wrap">
-                                                {[info.sensor, info.resolution, info.cadence].map((tag, i) => (
-                                                    <span key={i} className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 text-white/25">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
 
                     {/* Bottom actions */}
                     <div className="mt-auto pt-1 flex flex-col gap-2">
@@ -818,16 +800,6 @@ export default function Dashboard() {
                             Restore Default View
                         </button>
 
-                        {/* Legend toggle */}
-                        <button
-                            onClick={() => setIsLegendOpen(!isLegendOpen)}
-                            className={`w-full flex items-center justify-center gap-2 py-3 rounded border text-[10px] font-bold transition-all cursor-pointer ${isLegendOpen
-                                ? 'bg-brand-gold text-brand-deep border-brand-gold'
-                                : 'bg-transparent border-brand-gold/30 text-brand-gold/60 hover:bg-brand-gold/10 hover:border-brand-gold/50'
-                            }`}
-                        >
-                            {isLegendOpen ? 'Hide Legend' : 'Show Legend'}
-                        </button>
                     </div>
                 </div>
             </div>
@@ -980,6 +952,35 @@ export default function Dashboard() {
                         <LossChart data={metrics.trend} loading={loadingMetrics} />
                     </div>
 
+                    <div className="h-px bg-white/5 w-full" />
+
+                    {/* ── Data Sources ─────────────────────────────── */}
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-1.5">
+                            <Database size={9} className="text-white/20" />
+                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Data Sources</span>
+                        </div>
+                        {selectedLayers.filter(id => LAYER_INFO[id]).map(layerId => {
+                            const info = LAYER_INFO[layerId];
+                            return (
+                                <div key={layerId} className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                                    <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${info.dot}`} />
+                                    <div className="flex flex-col gap-1.5 min-w-0">
+                                        <span className="text-[10px] font-semibold text-white/55 leading-none">{info.name}</span>
+                                        <span className="text-[9px] text-white/25 leading-snug">{info.source}</span>
+                                        <div className="flex gap-1 flex-wrap">
+                                            {[info.sensor, info.resolution, info.cadence].map((tag, i) => (
+                                                <span key={i} className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 text-white/25">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
                 </div>
 
                 {/* Status bar */}
@@ -1007,13 +1008,26 @@ export default function Dashboard() {
                 <BarChart3 size={20} />
             </button>
 
-            {/* Legend */}
+            {/* Legend floating panel — anchored above the legend button */}
             <LegendPanel
                 isOpen={isLegendOpen}
                 onClose={() => setIsLegendOpen(false)}
                 activeLayers={selectedLayers}
-                className={`fixed md:absolute z-50 transition-all duration-500 bottom-20 md:bottom-12 left-4 ${isLeftCollapsed ? 'md:left-6' : 'md:left-[336px]'}`}
+                className="hidden md:block absolute z-50 bottom-24 left-6"
             />
+
+            {/* Legend floating button — desktop only, bottom left */}
+            <div className="hidden md:flex absolute bottom-12 left-6 z-30">
+                <GlassPanel className="flex flex-col gap-1 p-1 shadow-2xl rounded-lg">
+                    <button
+                        onClick={() => setIsLegendOpen(!isLegendOpen)}
+                        className={`p-2.5 transition-all rounded cursor-pointer ${isLegendOpen ? 'text-brand-gold bg-brand-gold/20' : 'text-brand-faded hover:text-white hover:bg-brand-gold/20'}`}
+                        title="Toggle Legend"
+                    >
+                        <Layers size={18} />
+                    </button>
+                </GlassPanel>
+            </div>
 
             {/* Map controls — desktop only */}
             <div className={`hidden md:flex absolute bottom-12 z-30 flex-col gap-3 items-end transition-all duration-500 ${isRightCollapsed ? 'right-6' : 'right-[336px]'}`}>
@@ -1054,6 +1068,9 @@ export default function Dashboard() {
                     </button>
                 </GlassPanel>
             </div>
+
+            {/* About modal — shows on first visit */}
+            <AboutModal onOpenTour={() => setTourTrigger(t => !t)} />
 
             {/* Tour guide — desktop only, auto-starts on first visit */}
             <TourGuide autoStart={tourTrigger} />

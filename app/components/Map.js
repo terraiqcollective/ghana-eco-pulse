@@ -36,7 +36,7 @@ function MapController({ bounds, zoomCommand, mapCommand }) {
     useEffect(() => {
         if (!mapCommand) return;
         if (mapCommand.type === 'reset') {
-            map.flyTo([7.5, -1.2], 7, { duration: 1.8, easeLinearity: 0.25 });
+            map.flyTo([7.5, -1.2], 8, { duration: 1.8, easeLinearity: 0.25 });
         }
     }, [mapCommand, map]);
 
@@ -343,7 +343,7 @@ export default function MapComponent({
             )}
             <MapContainer
                 center={[7.5, -1.2]}
-                zoom={7}
+                zoom={8}
                 className="h-full w-full bg-brand-deep"
                 zoomControl={false}
             >

@@ -1,8 +1,7 @@
-import React from 'react';
-import { MapPin, Calendar, RotateCcw, HelpCircle } from 'lucide-react';
+import { MapPin, Calendar, RotateCcw, HelpCircle, Info } from 'lucide-react';
 import { BrandMark } from './BrandMark';
 
-export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset, onTour }) => {
+export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset, onTour, onAbout }) => {
     const scopeLabel = selectedDistrict || selectedRegion || null;
 
     return (
@@ -58,15 +57,15 @@ export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onRe
                     </button>
                 )}
 
-                {/* Reset button — always visible */}
-                {onReset && (
+                {/* Info / About button */}
+                {onAbout && (
                     <button
-                        onClick={onReset}
-                        title="Reset to default view"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-red-500/30 text-white/20 hover:text-red-400 transition-all duration-200 group"
+                        onClick={onAbout}
+                        title="About this portal"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-brand-gold/30 text-white/20 hover:text-brand-gold transition-all duration-200"
                     >
-                        <RotateCcw size={11} className="group-hover:rotate-[-360deg] transition-transform duration-500" />
-                        <span className="text-[9px] font-semibold hidden sm:block">Reset</span>
+                        <Info size={11} />
+                        <span className="text-[9px] font-semibold hidden sm:block">About</span>
                     </button>
                 )}
             </div>

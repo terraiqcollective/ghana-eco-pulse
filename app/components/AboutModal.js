@@ -6,7 +6,7 @@ import { BrandMark } from './BrandMark';
 
 const ABOUT_KEY = 'ecopulse_about_seen';
 
-export function AboutModal({ onOpenTour }) {
+export function AboutModal({ onOpenTour, forceOpen = false }) {
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
@@ -16,6 +16,10 @@ export function AboutModal({ onOpenTour }) {
             setTimeout(() => setVisible(true), 600);
         }
     }, []);
+
+    useEffect(() => {
+        if (forceOpen) setVisible(true);
+    }, [forceOpen]);
 
     const dismiss = () => {
         localStorage.setItem(ABOUT_KEY, '1');

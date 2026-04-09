@@ -111,6 +111,7 @@ export default function Dashboard() {
     const [isRightCollapsed, setIsRightCollapsed] = useState(true);
     const [isLegendOpen, setIsLegendOpen] = useState(false);
     const [tourTrigger, setTourTrigger] = useState(false);
+    const [aboutTrigger, setAboutTrigger] = useState(false);
 
     // Mobile
     const [isMobile, setIsMobile] = useState(false);
@@ -563,6 +564,7 @@ export default function Dashboard() {
                     selectedRegion={selectedRegion}
                     selectedDistrict={selectedDistrict}
                     onReset={resetDashboard}
+                    onAbout={() => setAboutTrigger(t => !t)}
                     onTour={() => { setTourTrigger(t => !t); }}
                 />
             </div>
@@ -1066,8 +1068,8 @@ export default function Dashboard() {
                 </GlassPanel>
             </div>
 
-            {/* About modal — shows on first visit */}
-            <AboutModal onOpenTour={() => setTourTrigger(t => !t)} />
+            {/* About modal — shows on first visit or when triggered */}
+            <AboutModal onOpenTour={() => setTourTrigger(t => !t)} forceOpen={aboutTrigger} />
 
             {/* Tour guide — desktop only, auto-starts on first visit */}
             <TourGuide autoStart={tourTrigger} />

@@ -429,13 +429,12 @@ export default function Dashboard() {
         });
     }, [selectedDistrict]);
 
-    // Auto-open right panel and legend when real metrics arrive
+    // Auto-open right panel only when user has made a selection and metrics arrive
     useEffect(() => {
-        if (metrics.carbonStock > 0 || metrics.carbonLoss > 0) {
+        if ((metrics.carbonStock > 0 || metrics.carbonLoss > 0) && (selectedRegion || selectedDistrict)) {
             setIsRightCollapsed(false);
-            setIsLegendOpen(true);
         }
-    }, [metrics.carbonStock, metrics.carbonLoss]);
+    }, [metrics.carbonStock, metrics.carbonLoss, selectedRegion, selectedDistrict]);
 
     // ─── Initial loading screen ──────────────────────────────────────────────
     if (loading) {
@@ -778,6 +777,33 @@ export default function Dashboard() {
 
 
 
+                    {/* ── Data Sources ────────────────────────────── */}
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-1.5">
+                            <Database size={9} className="text-white/20" />
+                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Data Sources</span>
+                        </div>
+                        {selectedLayers.filter(id => LAYER_INFO[id]).map(layerId => {
+                            const info = LAYER_INFO[layerId];
+                            return (
+                                <div key={layerId} className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                                    <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${info.dot}`} />
+                                    <div className="flex flex-col gap-1.5 min-w-0">
+                                        <span className="text-[10px] font-semibold text-white/55 leading-none">{info.name}</span>
+                                        <span className="text-[9px] text-white/25 leading-snug">{info.source}</span>
+                                        <div className="flex gap-1 flex-wrap">
+                                            {[info.sensor, info.resolution, info.cadence].map((tag, i) => (
+                                                <span key={i} className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 text-white/25">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
                     {/* Bottom actions */}
                     <div className="mt-auto pt-1 flex flex-col gap-2">
                         {/* Reset — always visible */}
@@ -832,14 +858,6 @@ export default function Dashboard() {
                             <button onClick={() => setMetricsError(null)} className="shrink-0 text-red-400/50 hover:text-red-400 transition-colors">
                                 <X size={12} />
                             </button>
-                        </div>
-                    )}
-
-                    {/* Takeaway */}
-                    {!loadingMetrics && takeaway && (
-                        <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${takeawayStyle[takeaway.type]}`}>
-                            <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${takeawayDot[takeaway.type]}`} />
-                            <span className="text-[10px] font-medium text-white/55 leading-snug">{takeaway.text}</span>
                         </div>
                     )}
 
@@ -942,41 +960,20 @@ export default function Dashboard() {
                         </div>
                     )}
 
+                    {/* Takeaway */}
+                    {!loadingMetrics && takeaway && (
+                        <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${takeawayStyle[takeaway.type]}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${takeawayDot[takeaway.type]}`} />
+                            <span className="text-[10px] font-medium text-white/55 leading-snug">{takeaway.text}</span>
+                        </div>
+                    )}
+
                     <div className="h-px bg-white/5 w-full" />
 
                     {/* Loss trend */}
                     <div className="flex flex-col gap-3">
                         <span className="text-[9px] font-semibold text-white/30">Loss Trend</span>
                         <LossChart data={metrics.trend} loading={loadingMetrics} />
-                    </div>
-
-                    <div className="h-px bg-white/5 w-full" />
-
-                    {/* ── Data Sources ─────────────────────────────── */}
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-1.5">
-                            <Database size={9} className="text-white/20" />
-                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Data Sources</span>
-                        </div>
-                        {selectedLayers.filter(id => LAYER_INFO[id]).map(layerId => {
-                            const info = LAYER_INFO[layerId];
-                            return (
-                                <div key={layerId} className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                                    <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${info.dot}`} />
-                                    <div className="flex flex-col gap-1.5 min-w-0">
-                                        <span className="text-[10px] font-semibold text-white/55 leading-none">{info.name}</span>
-                                        <span className="text-[9px] text-white/25 leading-snug">{info.source}</span>
-                                        <div className="flex gap-1 flex-wrap">
-                                            {[info.sensor, info.resolution, info.cadence].map((tag, i) => (
-                                                <span key={i} className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 text-white/25">
-                                                    {tag}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
                     </div>
 
                 </div>

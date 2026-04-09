@@ -63,18 +63,6 @@ export function TourGuide({ autoStart = false }) {
     const [step, setStep] = useState(0);
     const [rect, setRect] = useState(null);
 
-    // Check localStorage on mount — auto-start if first visit
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        // Only run on desktop
-        if (window.innerWidth < 768) return;
-        const seen = localStorage.getItem(TOUR_KEY);
-        if (!seen) {
-            // Small delay so the DOM is fully painted
-            const timeoutId = setTimeout(() => setActive(true), 800);
-            return () => clearTimeout(timeoutId);
-        }
-    }, []);
 
     // Update spotlight rect whenever step changes
     useEffect(() => {

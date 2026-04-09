@@ -776,16 +776,6 @@ export default function Dashboard() {
                         )}
                     </div>
 
-                    {/* ── Quick Insights (A) ──────────────────────── */}
-                    {!loadingMetrics && takeaway && (
-                        <div className="flex flex-col gap-2">
-                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Takeaway</span>
-                            <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${takeawayStyle[takeaway.type]}`}>
-                                <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${takeawayDot[takeaway.type]}`} />
-                                <span className="text-[10px] font-medium text-white/55 leading-snug">{takeaway.text}</span>
-                            </div>
-                        </div>
-                    )}
 
 
                     {/* Bottom actions */}
@@ -842,6 +832,14 @@ export default function Dashboard() {
                             <button onClick={() => setMetricsError(null)} className="shrink-0 text-red-400/50 hover:text-red-400 transition-colors">
                                 <X size={12} />
                             </button>
+                        </div>
+                    )}
+
+                    {/* Takeaway */}
+                    {!loadingMetrics && takeaway && (
+                        <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${takeawayStyle[takeaway.type]}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${takeawayDot[takeaway.type]}`} />
+                            <span className="text-[10px] font-medium text-white/55 leading-snug">{takeaway.text}</span>
                         </div>
                     )}
 
@@ -1008,16 +1006,18 @@ export default function Dashboard() {
                 <BarChart3 size={20} />
             </button>
 
-            {/* Legend floating panel — anchored above the legend button */}
-            <LegendPanel
-                isOpen={isLegendOpen}
-                onClose={() => setIsLegendOpen(false)}
-                activeLayers={selectedLayers}
-                className="hidden md:block absolute z-50 bottom-24 left-6"
-            />
-
-            {/* Legend floating button — desktop only, bottom left */}
-            <div className="hidden md:flex absolute bottom-12 left-6 z-30">
+            {/* Legend floating panel + button — desktop only, mirrors zoom controls pattern */}
+            <div className={`hidden md:flex absolute bottom-12 z-30 flex-col gap-3 items-start transition-all duration-500 ${isLeftCollapsed ? 'left-6' : 'left-[336px]'}`}>
+                {isLegendOpen && (
+                    <div className="mb-1 animate-in fade-in slide-in-from-left-4 duration-200">
+                        <LegendPanel
+                            isOpen={isLegendOpen}
+                            onClose={() => setIsLegendOpen(false)}
+                            activeLayers={selectedLayers}
+                            className=""
+                        />
+                    </div>
+                )}
                 <GlassPanel className="flex flex-col gap-1 p-1 shadow-2xl rounded-lg">
                     <button
                         onClick={() => setIsLegendOpen(!isLegendOpen)}

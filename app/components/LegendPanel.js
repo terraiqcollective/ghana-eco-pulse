@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, Layers } from 'lucide-react';
 import { GlassPanel } from './GlassPanel';
 

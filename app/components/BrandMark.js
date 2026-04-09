@@ -1,5 +1,3 @@
-import React from 'react';
-
 export function BrandMark({ className = 'w-10 h-10' }) {
     return (
         <svg

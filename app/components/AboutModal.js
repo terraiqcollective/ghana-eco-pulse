@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { X, TreePine, ShieldAlert, Database, HelpCircle } from 'lucide-react';
+import { X, ShieldAlert, Database, HelpCircle } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 
 const ABOUT_KEY = 'ecopulse_about_seen';
 
@@ -39,9 +40,7 @@ export function AboutModal({ onOpenTour }) {
                 {/* Header strip */}
                 <div className="px-6 pt-6 pb-4 border-b border-white/6 flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-brand-gold/10 border border-brand-gold/20 flex items-center justify-center shrink-0">
-                            <TreePine size={18} className="text-brand-gold" />
-                        </div>
+                        <BrandMark className="w-10 h-10 shrink-0 rounded-[10px]" />
                         <div>
                             <h2 className="text-white text-base font-bold tracking-wide leading-none">
                                 <span className="text-white/90">Eco</span><span className="text-brand-gold">Pulse</span> Ghana

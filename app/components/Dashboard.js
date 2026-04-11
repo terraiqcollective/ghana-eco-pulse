@@ -99,40 +99,6 @@ function computeTakeaway(metrics, selectedYear, selectedRegion, selectedDistrict
     return { type: 'neutral', text: `Showing district-level results for ${selectedDistrict} in ${selectedYear}.` };
 }
 
-function getCurrentViewChips({ hasActiveAnalysis, activeScope, activeRegion, activeDistrict, activeYear, draftScope, draftRegion, draftDistrict, draftYear, hasPendingChanges }) {
-    const chips = [];
-
-    if (hasActiveAnalysis) {
-        const activeLabel = activeScope === 'district' && activeDistrict
-            ? `${activeDistrict}, ${activeRegion}`
-            : activeRegion;
-
-        chips.push({
-            label: 'Current View',
-            value: `${ANALYSIS_SCOPES[activeScope]} · ${activeLabel} · ${activeYear}`,
-            tone: 'active',
-        });
-    } else {
-        chips.push({
-            label: 'Current View',
-                                value: 'Choose an area to begin',
-            tone: 'neutral',
-        });
-    }
-
-    const draftLabel = draftScope === 'district' && draftDistrict
-        ? `${draftDistrict}, ${draftRegion}`
-        : draftRegion || 'Not selected';
-
-    chips.push({
-        label: 'Draft',
-        value: `${ANALYSIS_SCOPES[draftScope]} · ${draftLabel} · ${draftYear || 'Year pending'}`,
-        tone: hasPendingChanges ? 'pending' : 'neutral',
-    });
-
-    return chips;
-}
-
 const MapComponent = dynamic(() => import('./Map'), {
     ssr: false,
     loading: () => (
@@ -292,22 +258,6 @@ export default function Dashboard() {
     const takeaway = useMemo(
         () => computeTakeaway(metrics, activeYear, activeRegion, activeDistrict),
         [metrics, activeYear, activeRegion, activeDistrict]
-    );
-
-    const currentViewChips = useMemo(
-        () => getCurrentViewChips({
-            hasActiveAnalysis,
-            activeScope,
-            activeRegion,
-            activeDistrict,
-            activeYear,
-            draftScope: analysisScope,
-            draftRegion,
-            draftDistrict,
-            draftYear,
-            hasPendingChanges,
-        }),
-        [hasActiveAnalysis, activeScope, activeRegion, activeDistrict, activeYear, analysisScope, draftRegion, draftDistrict, draftYear, hasPendingChanges]
     );
 
     const visibleLegendLayers = useMemo(
@@ -687,21 +637,10 @@ export default function Dashboard() {
 
                     {/* ── Location ───────────────────────────────── */}
                     <div className="flex flex-col gap-3">
-                        <div className="flex flex-wrap gap-2">
-                            {currentViewChips.map(chip => (
-                                <div
-                                    key={chip.label}
-                                    className={`rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] ${
-                                        chip.tone === 'active'
-                                            ? 'border-brand-gold/30 bg-brand-gold/10 text-brand-gold'
-                                            : chip.tone === 'pending'
-                                                ? 'border-white/15 bg-white/5 text-white/55'
-                                                : 'border-white/10 bg-white/[0.03] text-white/35'
-                                    }`}
-                                >
-                                    <span className="mr-1 text-white/35">{chip.label}:</span>{chip.value}
-                                </div>
-                            ))}
+                        <div className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
+                            <p className="text-[10px] font-medium text-white/40">
+                                Choose configuration for analysis, then select your area and year.
+                            </p>
                         </div>
 
                         <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Analysis Setup</span>
@@ -837,6 +776,14 @@ export default function Dashboard() {
                     </div>
 
                     {/* ── Map Layers ──────────────────────────────── */}
+                    <button
+                        onClick={runAnalysis}
+                        disabled={!canRunAnalysis}
+                        className="w-full rounded-lg bg-brand-gold px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-brand-deep transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                        Run Analysis
+                    </button>
+
                     <div id="tour-map-layers" className="flex flex-col gap-2">
                         <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Map Layers</span>
                         {[
@@ -887,31 +834,7 @@ export default function Dashboard() {
                         )}
                     </div>
 
-                    <div className="rounded-xl border border-brand-gold/20 bg-brand-gold/[0.05] p-3">
-                        <div className="mb-3 flex items-start justify-between gap-3">
-                            <div>
-                                <span className="block text-[9px] font-semibold uppercase tracking-widest text-brand-gold/65">Run Analysis</span>
-                                <p className="mt-1 text-[9px] leading-snug text-white/30">
-                                    {canRunAnalysis
-                                        ? `Analyze ${analysisScope === 'district' ? `${draftDistrict}, ${draftRegion}` : draftRegion} for ${draftYear}.`
-                                        : `Complete the ${analysisScope} selection to enable analysis.`}
-                                </p>
-                            </div>
-                            {hasPendingChanges && hasActiveAnalysis && (
-                                <span className="rounded-full border border-white/10 px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-white/40">
-                                    Pending
-                                </span>
-                            )}
-                        </div>
-                        <button
-                            onClick={runAnalysis}
-                            disabled={!canRunAnalysis}
-                            className="w-full rounded-lg bg-brand-gold px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-brand-deep transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                            Run Analysis
-                        </button>
-                    </div>
-
+ 
                     {/* ── Data Sources ────────────────────────────── */}
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-1.5">

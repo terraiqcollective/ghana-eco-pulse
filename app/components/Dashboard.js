@@ -17,6 +17,12 @@ import { AboutModal } from './AboutModal';
 import { KPI } from './KPI';
 import { LossChart } from './LossChart';
 
+const ABOUT_KEY = 'ecopulse_about_seen';
+const ANALYSIS_SCOPES = {
+    region: 'Region',
+    district: 'District',
+};
+
 // ─── Data source metadata for each layer ────────────────────────────────────
 const LAYER_INFO = {
     carbon: {
@@ -93,6 +99,40 @@ function computeTakeaway(metrics, selectedYear, selectedRegion, selectedDistrict
     return { type: 'neutral', text: `Showing district-level results for ${selectedDistrict} in ${selectedYear}.` };
 }
 
+function getCurrentViewChips({ hasActiveAnalysis, activeScope, activeRegion, activeDistrict, activeYear, draftScope, draftRegion, draftDistrict, draftYear, hasPendingChanges }) {
+    const chips = [];
+
+    if (hasActiveAnalysis) {
+        const activeLabel = activeScope === 'district' && activeDistrict
+            ? `${activeDistrict}, ${activeRegion}`
+            : activeRegion;
+
+        chips.push({
+            label: 'Current View',
+            value: `${ANALYSIS_SCOPES[activeScope]} · ${activeLabel} · ${activeYear}`,
+            tone: 'active',
+        });
+    } else {
+        chips.push({
+            label: 'Current View',
+            value: 'Overview Mode',
+            tone: 'neutral',
+        });
+    }
+
+    const draftLabel = draftScope === 'district' && draftDistrict
+        ? `${draftDistrict}, ${draftRegion}`
+        : draftRegion || 'Not selected';
+
+    chips.push({
+        label: 'Draft',
+        value: `${ANALYSIS_SCOPES[draftScope]} · ${draftLabel} · ${draftYear || 'Year pending'}`,
+        tone: hasPendingChanges ? 'pending' : 'neutral',
+    });
+
+    return chips;
+}
+
 const MapComponent = dynamic(() => import('./Map'), {
     ssr: false,
     loading: () => (
@@ -127,7 +167,7 @@ export default function Dashboard() {
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const seen = window.localStorage.getItem('ecopulse_about_seen');
+        const seen = window.localStorage.getItem(ABOUT_KEY);
         if (seen) return;
 
         const timeoutId = window.setTimeout(() => setIsAboutOpen(true), 600);
@@ -150,9 +190,14 @@ export default function Dashboard() {
     const [years, setYears] = useState([]);
     const [regions, setRegions] = useState([]);
     const [districts, setDistricts] = useState([]);
-    const [selectedYear, setSelectedYear] = useState(null);
-    const [selectedRegion, setSelectedRegion] = useState('');
-    const [selectedDistrict, setSelectedDistrict] = useState('');
+    const [analysisScope, setAnalysisScope] = useState('region');
+    const [draftYear, setDraftYear] = useState(null);
+    const [draftRegion, setDraftRegion] = useState('');
+    const [draftDistrict, setDraftDistrict] = useState('');
+    const [activeYear, setActiveYear] = useState(null);
+    const [activeRegion, setActiveRegion] = useState('');
+    const [activeDistrict, setActiveDistrict] = useState('');
+    const [activeScope, setActiveScope] = useState('region');
 
     // Data
     const [metrics, setMetrics] = useState({ carbonStock: 0, carbonLoss: 0, trend: [] });
@@ -195,12 +240,16 @@ export default function Dashboard() {
     };
 
     const resetDashboard = useCallback(() => {
-        setSelectedRegion('');
-        setSelectedDistrict('');
+        setDraftRegion('');
+        setDraftDistrict('');
+        setActiveRegion('');
+        setActiveDistrict('');
         setDistricts([]);
         setPendingDistrict(null);
+        setAnalysisScope('region');
         setSelectedLayers(['carbon', 'mining']);
         setCompareMode(false);
+        setCompareYear(null);
         setCompareMetrics(null);
         setMetrics({ carbonStock: 0, carbonLoss: 0, trend: [] });
         setMetadataError(null);
@@ -208,25 +257,32 @@ export default function Dashboard() {
         setDistrictsError(null);
         setIsRightCollapsed(true);
         setIsLegendOpen(false);
-        if (years.length > 0) setSelectedYear(parseInt(years[years.length - 1]));
+        if (years.length > 0) {
+            const latestYear = parseInt(years[years.length - 1]);
+            setDraftYear(latestYear);
+            setActiveYear(null);
+            setCompareYear(latestYear - 1);
+        }
         setMapCommand({ type: 'reset', t: Date.now() });
     }, [years]);
 
     const handleDistrictClick = useCallback((districtName, regionName) => {
         if (regionName) {
+            setAnalysisScope('district');
             setPendingDistrict(districtName);
-            setSelectedRegion(regionName);
+            setDraftRegion(regionName);
         }
     }, []);
 
     const handleRegionClick = useCallback((regionName) => {
-        setSelectedRegion(regionName);
-        setSelectedDistrict('');
+        setAnalysisScope('region');
+        setDraftRegion(regionName);
+        setDraftDistrict('');
     }, []);
 
     const closeAboutModal = useCallback(() => {
         if (typeof window !== 'undefined') {
-            window.localStorage.setItem('ecopulse_about_seen', '1');
+            window.localStorage.setItem(ABOUT_KEY, '1');
         }
         setIsAboutOpen(false);
     }, []);
@@ -236,16 +292,65 @@ export default function Dashboard() {
         setTourTrigger(prev => prev + 1);
     }, [closeAboutModal]);
 
-    const hasFilters = selectedRegion !== '' || selectedDistrict !== '';
+    const hasActiveAnalysis = !!activeRegion;
+    const hasDraftLocation = analysisScope === 'district' ? !!draftRegion && !!draftDistrict : !!draftRegion;
+    const canRunAnalysis = !!draftYear && hasDraftLocation;
+    const hasPendingChanges = (
+        draftYear !== activeYear
+        || draftRegion !== activeRegion
+        || draftDistrict !== activeDistrict
+        || analysisScope !== activeScope
+    );
 
-    const sliderFill = years.length > 1 && selectedYear
-        ? ((selectedYear - years[0]) / (years[years.length - 1] - years[0])) * 100
+    const sliderFill = years.length > 1 && draftYear
+        ? ((draftYear - years[0]) / (years[years.length - 1] - years[0])) * 100
         : 0;
 
     const takeaway = useMemo(
-        () => computeTakeaway(metrics, selectedYear, selectedRegion, selectedDistrict),
-        [metrics, selectedYear, selectedRegion, selectedDistrict]
+        () => computeTakeaway(metrics, activeYear, activeRegion, activeDistrict),
+        [metrics, activeYear, activeRegion, activeDistrict]
     );
+
+    const currentViewChips = useMemo(
+        () => getCurrentViewChips({
+            hasActiveAnalysis,
+            activeScope,
+            activeRegion,
+            activeDistrict,
+            activeYear,
+            draftScope: analysisScope,
+            draftRegion,
+            draftDistrict,
+            draftYear,
+            hasPendingChanges,
+        }),
+        [hasActiveAnalysis, activeScope, activeRegion, activeDistrict, activeYear, analysisScope, draftRegion, draftDistrict, draftYear, hasPendingChanges]
+    );
+
+    const visibleLegendLayers = useMemo(
+        () => selectedLayers.filter(layerId => {
+            if (layerId === 'region') return !!activeRegion;
+            if (layerId === 'district') return !!activeDistrict;
+            return !!activeYear;
+        }),
+        [selectedLayers, activeYear, activeRegion, activeDistrict]
+    );
+
+    const runAnalysis = useCallback(() => {
+        if (!canRunAnalysis) return;
+
+        setActiveScope(analysisScope);
+        setActiveYear(draftYear);
+        setActiveRegion(draftRegion);
+        setActiveDistrict(analysisScope === 'district' ? draftDistrict : '');
+        setMetricsError(null);
+        setCompareMetrics(null);
+        setIsRightCollapsed(false);
+
+        if (isMobile) {
+            setMobilePanel('right');
+        }
+    }, [canRunAnalysis, analysisScope, draftYear, draftRegion, draftDistrict, isMobile]);
 
     // 0. Fetch full boundary GeoJSON once on mount
     useEffect(() => {
@@ -288,7 +393,7 @@ export default function Dashboard() {
                 setRegions(data.regions || []);
                 if (data.years?.length > 0) {
                     const latest = parseInt(data.years[data.years.length - 1]);
-                    setSelectedYear(latest);
+                    setDraftYear(latest);
                     setCompareYear(latest - 1);
                 }
             } catch (err) {
@@ -308,9 +413,9 @@ export default function Dashboard() {
 
     // 2. Fetch districts
     useEffect(() => {
-        if (!selectedRegion) {
+        if (!draftRegion) {
             setDistricts([]);
-            setSelectedDistrict('');
+            setDraftDistrict('');
             setDistrictsError(null);
             return;
         }
@@ -324,7 +429,7 @@ export default function Dashboard() {
                 const response = await fetch('/api/gee/districts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ region: selectedRegion }),
+                    body: JSON.stringify({ region: draftRegion }),
                     signal: abortController.signal,
                 });
                 if (!response.ok) throw new Error('Failed to load districts');
@@ -333,10 +438,10 @@ export default function Dashboard() {
                 setDistricts(data.districts || []);
                 // If a district was pre-selected via map click, apply it now
                 if (pendingDistrict) {
-                    setSelectedDistrict(pendingDistrict);
+                    setDraftDistrict(pendingDistrict);
                     setPendingDistrict(null);
-                } else {
-                    setSelectedDistrict('');
+                } else if (analysisScope !== 'district') {
+                    setDraftDistrict('');
                 }
             } catch (err) {
                 if (err.name === 'AbortError') return;
@@ -352,11 +457,15 @@ export default function Dashboard() {
         fetchDistricts();
 
         return () => abortController.abort();
-    }, [selectedRegion, pendingDistrict]);
+    }, [draftRegion, pendingDistrict, analysisScope]);
 
     // 3. Fetch metrics
     useEffect(() => {
-        if (!selectedYear) return;
+        if (!activeYear || !activeRegion) {
+            setMetrics({ carbonStock: 0, carbonLoss: 0, trend: [] });
+            setLoadingMetrics(false);
+            return;
+        }
 
         const abortController = new AbortController();
 
@@ -367,7 +476,7 @@ export default function Dashboard() {
                 const response = await fetch('/api/gee/metrics', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year: selectedYear, region: selectedRegion, district: selectedDistrict, years }),
+                    body: JSON.stringify({ year: activeYear, region: activeRegion, district: activeDistrict, years }),
                     signal: abortController.signal,
                 });
                 if (!response.ok) throw new Error('Failed to load metrics');
@@ -387,11 +496,11 @@ export default function Dashboard() {
         fetchMetrics();
 
         return () => abortController.abort();
-    }, [selectedYear, selectedRegion, selectedDistrict, years]);
+    }, [activeYear, activeRegion, activeDistrict, years]);
 
     // 4. Fetch compare metrics
     useEffect(() => {
-        if (!compareMode || !compareYear || !selectedYear || compareYear === selectedYear) {
+        if (!compareMode || !compareYear || !activeYear || !activeRegion || compareYear === activeYear) {
             setCompareMetrics(null);
             return;
         }
@@ -404,7 +513,7 @@ export default function Dashboard() {
                 const response = await fetch('/api/gee/metrics', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year: compareYear, region: selectedRegion, district: selectedDistrict, years }),
+                    body: JSON.stringify({ year: compareYear, region: activeRegion, district: activeDistrict, years }),
                     signal: abortController.signal,
                 });
                 if (!response.ok) throw new Error();
@@ -423,35 +532,28 @@ export default function Dashboard() {
         fetchCompare();
 
         return () => abortController.abort();
-    }, [compareMode, compareYear, selectedYear, selectedRegion, selectedDistrict, years]);
+    }, [compareMode, compareYear, activeYear, activeRegion, activeDistrict, years]);
 
     // Auto-enable region boundary layer
     useEffect(() => {
-        if (selectedRegion) {
+        if (activeRegion) {
             setSelectedLayers(prev => (
                 prev.includes('region') ? prev : [...prev, 'region']
             ));
         }
-    }, [selectedRegion]);
+    }, [activeRegion]);
 
     // Sync district layer
     useEffect(() => {
         setSelectedLayers(prev => {
-            if (selectedDistrict) {
+            if (activeDistrict) {
                 return prev.includes('district') ? prev : [...prev, 'district'];
             }
             return prev.includes('district')
                 ? prev.filter(l => l !== 'district')
                 : prev;
         });
-    }, [selectedDistrict]);
-
-    // Auto-open right panel only when user has made a selection and metrics arrive
-    useEffect(() => {
-        if ((metrics.carbonStock > 0 || metrics.carbonLoss > 0) && (selectedRegion || selectedDistrict)) {
-            setIsRightCollapsed(false);
-        }
-    }, [metrics.carbonStock, metrics.carbonLoss, selectedRegion, selectedDistrict]);
+    }, [activeDistrict]);
 
     // ─── Initial loading screen ──────────────────────────────────────────────
     if (loading) {
@@ -497,9 +599,11 @@ export default function Dashboard() {
 
     const systemStatus = metricsError
         ? { dotClass: 'bg-red-500' }
-        : loadingMetrics
-            ? { dotClass: 'bg-brand-gold animate-pulse' }
-            : { dotClass: 'bg-emerald-500 animate-pulse' };
+        : !hasActiveAnalysis
+            ? { dotClass: 'bg-white/20' }
+            : loadingMetrics
+                ? { dotClass: 'bg-brand-gold animate-pulse' }
+                : { dotClass: 'bg-emerald-500 animate-pulse' };
 
     // ─── Panel class builders ────────────────────────────────────────────────
     const leftPanelClass = [
@@ -560,9 +664,9 @@ export default function Dashboard() {
             {/* Full-screen map */}
             <div id="tour-map" className="absolute inset-0 z-0 bg-brand-deep">
                 <MapComponent
-                    year={selectedYear}
-                    region={selectedRegion}
-                    district={selectedDistrict}
+                    year={activeYear}
+                    region={activeRegion}
+                    district={activeDistrict}
                     activeLayers={selectedLayers}
                     zoomCommand={zoomCommand}
                     mapCommand={mapCommand}
@@ -576,9 +680,9 @@ export default function Dashboard() {
             {/* Header */}
             <div className="absolute top-0 left-0 right-0 z-40" style={{ height: '64px' }}>
                 <TopHeader
-                    selectedYear={selectedYear}
-                    selectedRegion={selectedRegion}
-                    selectedDistrict={selectedDistrict}
+                    selectedYear={activeYear}
+                    selectedRegion={activeRegion}
+                    selectedDistrict={activeDistrict}
                     onAbout={() => setIsAboutOpen(true)}
                     onTour={() => setTourTrigger(prev => prev + 1)}
                 />
@@ -631,19 +735,58 @@ export default function Dashboard() {
 
                     {/* ── Location ───────────────────────────────── */}
                     <div className="flex flex-col gap-3">
-                        <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Location</span>
+                        <div className="flex flex-wrap gap-2">
+                            {currentViewChips.map(chip => (
+                                <div
+                                    key={chip.label}
+                                    className={`rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] ${
+                                        chip.tone === 'active'
+                                            ? 'border-brand-gold/30 bg-brand-gold/10 text-brand-gold'
+                                            : chip.tone === 'pending'
+                                                ? 'border-white/15 bg-white/5 text-white/55'
+                                                : 'border-white/10 bg-white/[0.03] text-white/35'
+                                    }`}
+                                >
+                                    <span className="mr-1 text-white/35">{chip.label}:</span>{chip.value}
+                                </div>
+                            ))}
+                        </div>
+
+                        <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Analysis Setup</span>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            {Object.entries(ANALYSIS_SCOPES).map(([scopeId, label]) => (
+                                <button
+                                    key={scopeId}
+                                    onClick={() => {
+                                        setAnalysisScope(scopeId);
+                                        if (scopeId === 'region') setDraftDistrict('');
+                                    }}
+                                    className={`rounded-lg border px-3 py-2 text-[10px] font-bold transition-all ${
+                                        analysisScope === scopeId
+                                            ? 'border-brand-gold/40 bg-brand-gold/10 text-brand-gold'
+                                            : 'border-white/8 bg-transparent text-white/35 hover:border-white/15 hover:text-white/60'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
 
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[10px] font-medium text-white/45 pl-0.5">Region</label>
                             <select
-                                value={selectedRegion}
-                                onChange={(e) => setSelectedRegion(e.target.value)}
+                                value={draftRegion}
+                                onChange={(e) => {
+                                    setDraftRegion(e.target.value);
+                                    setDraftDistrict('');
+                                }}
                                 className="w-full bg-brand-deep/40 border border-brand-gold/20 rounded px-3 py-2 text-xs font-bold text-white outline-none focus:border-brand-gold/60 appearance-none cursor-pointer h-10 transition-colors"
                             >
-                                <option value="" className="bg-brand-deep">All Regions</option>
+                                <option value="" className="bg-brand-deep">Select region</option>
                                 {regions.map(r => <option key={r} value={r} className="bg-brand-deep">{r}</option>)}
                             </select>
-                            {selectedRegion && (
+                            {hasActiveAnalysis && (
                                 <button
                                     onClick={() => toggleLayer('region')}
                                     className="flex items-center justify-between px-3 py-2 rounded border border-white/8 hover:border-white/15 bg-white/3 hover:bg-white/5 transition-all cursor-pointer"
@@ -665,13 +808,13 @@ export default function Dashboard() {
                                 {loadingDistricts && <Loader2 size={10} className="animate-spin text-brand-gold/50" />}
                             </div>
                             <select
-                                value={selectedDistrict}
-                                onChange={(e) => setSelectedDistrict(e.target.value)}
-                                disabled={loadingDistricts || !selectedRegion}
+                                value={draftDistrict}
+                                onChange={(e) => setDraftDistrict(e.target.value)}
+                                disabled={analysisScope !== 'district' || loadingDistricts || !draftRegion}
                                 className="w-full bg-brand-deep/40 border border-brand-gold/20 rounded px-3 py-2 text-xs font-bold text-white outline-none focus:border-brand-gold/60 appearance-none cursor-pointer h-10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                             >
                                 <option value="" className="bg-brand-deep">
-                                    {!selectedRegion ? 'Select a region first' : 'All Districts'}
+                                    {analysisScope !== 'district' ? 'Switch to District scope' : !draftRegion ? 'Select a region first' : 'Select district'}
                                 </option>
                                 {districts.map(d => <option key={d} value={d} className="bg-brand-deep">{d}</option>)}
                             </select>
@@ -680,7 +823,7 @@ export default function Dashboard() {
                                     <AlertTriangle size={9} /> {districtsError}
                                 </p>
                             )}
-                            {selectedDistrict && (
+                            {activeDistrict && (
                                 <button
                                     onClick={() => toggleLayer('district')}
                                     className="flex items-center justify-between px-3 py-2 rounded border border-yellow-400/10 hover:border-yellow-400/20 bg-yellow-400/3 hover:bg-yellow-400/5 transition-all cursor-pointer"
@@ -696,7 +839,7 @@ export default function Dashboard() {
                             )}
                         </div>
 
-                        {hasFilters && (
+                        {(hasActiveAnalysis || hasDraftLocation) && (
                             <button
                                 onClick={resetDashboard}
                                 className="flex items-center justify-center gap-1.5 py-2 text-[9px] font-medium text-white/25 hover:text-white/50 border border-white/8 hover:border-white/15 rounded transition-all"
@@ -711,7 +854,7 @@ export default function Dashboard() {
                     <div className="flex flex-col gap-2.5">
                         <div className="flex items-baseline justify-between">
                             <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Year</span>
-                            <span className="text-[15px] font-black text-brand-gold tabular-nums">{selectedYear}</span>
+                            <span className="text-[15px] font-black text-brand-gold tabular-nums">{draftYear}</span>
                         </div>
                         <div id="tour-year-slider">
                             <input
@@ -719,8 +862,8 @@ export default function Dashboard() {
                                 min={years[0] || 2015}
                                 max={years[years.length - 1] || 2024}
                                 step="1"
-                                value={selectedYear || years[years.length - 1] || 2024}
-                                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                                value={draftYear || years[years.length - 1] || 2024}
+                                onChange={(e) => setDraftYear(parseInt(e.target.value))}
                                 className="year-slider cursor-pointer"
                                 style={{
                                     background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${sliderFill}%, rgba(5,46,22,0.8) ${sliderFill}%, rgba(5,46,22,0.8) 100%)`
@@ -730,8 +873,8 @@ export default function Dashboard() {
                                 <div className="flex justify-between mt-1">
                                     {years.map((y) => (
                                         <div key={y} className="flex flex-col items-center gap-0.5">
-                                            <div className={`w-px h-1.5 ${parseInt(y) === selectedYear ? 'bg-brand-gold/60' : 'bg-brand-faded/15'}`} />
-                                            <span className={`text-[7px] font-bold tabular-nums ${parseInt(y) === selectedYear ? 'text-brand-gold/70' : 'text-brand-faded/20'}`}>
+                                            <div className={`w-px h-1.5 ${parseInt(y) === draftYear ? 'bg-brand-gold/60' : 'bg-brand-faded/15'}`} />
+                                            <span className={`text-[7px] font-bold tabular-nums ${parseInt(y) === draftYear ? 'text-brand-gold/70' : 'text-brand-faded/20'}`}>
                                                 {String(y).slice(-2)}
                                             </span>
                                         </div>
@@ -769,7 +912,7 @@ export default function Dashboard() {
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest block leading-none">Comparison</span>
-                                <p className="text-[9px] text-white/18 mt-1 leading-snug">Compare the selected year with another reporting year</p>
+                                <p className="text-[9px] text-white/18 mt-1 leading-snug">Enable only when you want a side-by-side year review.</p>
                             </div>
                             <button
                                 onClick={() => { setCompareMode(!compareMode); if (compareMode) setCompareMetrics(null); }}
@@ -785,14 +928,37 @@ export default function Dashboard() {
                                 className="w-full bg-brand-deep/40 border border-brand-gold/20 rounded px-3 py-2 text-xs font-bold text-white outline-none focus:border-brand-gold/60 appearance-none cursor-pointer h-10"
                             >
                                 <option value="" className="bg-brand-deep">Select comparison year</option>
-                                {years.filter(y => parseInt(y) !== selectedYear).map(y => (
+                                {years.filter(y => parseInt(y) !== draftYear).map(y => (
                                     <option key={y} value={y} className="bg-brand-deep">{y}</option>
                                 ))}
                             </select>
                         )}
                     </div>
 
-
+                    <div className="rounded-xl border border-brand-gold/20 bg-brand-gold/[0.05] p-3">
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                            <div>
+                                <span className="block text-[9px] font-semibold uppercase tracking-widest text-brand-gold/65">Ready To Run</span>
+                                <p className="mt-1 text-[9px] leading-snug text-white/30">
+                                    {canRunAnalysis
+                                        ? `Analyze ${analysisScope === 'district' ? `${draftDistrict}, ${draftRegion}` : draftRegion} for ${draftYear}.`
+                                        : `Complete the ${analysisScope} selection to enable analysis.`}
+                                </p>
+                            </div>
+                            {hasPendingChanges && hasActiveAnalysis && (
+                                <span className="rounded-full border border-white/10 px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-white/40">
+                                    Pending
+                                </span>
+                            )}
+                        </div>
+                        <button
+                            onClick={runAnalysis}
+                            disabled={!canRunAnalysis}
+                            className="w-full rounded-lg bg-brand-gold px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-brand-deep transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            Run Analysis
+                        </button>
+                    </div>
 
                     {/* ── Data Sources ────────────────────────────── */}
                     <div className="flex flex-col gap-2">
@@ -800,25 +966,31 @@ export default function Dashboard() {
                             <Database size={9} className="text-white/20" />
                             <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Data Sources</span>
                         </div>
-                        {selectedLayers.filter(id => LAYER_INFO[id]).map(layerId => {
-                            const info = LAYER_INFO[layerId];
-                            return (
-                                <div key={layerId} className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                                    <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${info.dot}`} />
-                                    <div className="flex flex-col gap-1.5 min-w-0">
-                                        <span className="text-[10px] font-semibold text-white/55 leading-none">{info.name}</span>
-                                        <span className="text-[9px] text-white/25 leading-snug">{info.source}</span>
-                                        <div className="flex gap-1 flex-wrap">
-                                            {[info.sensor, info.resolution, info.cadence].map((tag, i) => (
-                                                <span key={i} className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 text-white/25">
-                                                    {tag}
-                                                </span>
-                                            ))}
+                        {visibleLegendLayers.length === 0 ? (
+                            <div className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-3 text-[9px] text-white/25">
+                                Run an analysis to populate active layer sources for the current view.
+                            </div>
+                        ) : (
+                            visibleLegendLayers.filter(id => LAYER_INFO[id]).map(layerId => {
+                                const info = LAYER_INFO[layerId];
+                                return (
+                                    <div key={layerId} className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                                        <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${info.dot}`} />
+                                        <div className="flex flex-col gap-1.5 min-w-0">
+                                            <span className="text-[10px] font-semibold text-white/55 leading-none">{info.name}</span>
+                                            <span className="text-[9px] text-white/25 leading-snug">{info.source}</span>
+                                            <div className="flex gap-1 flex-wrap">
+                                                {[info.sensor, info.resolution, info.cadence].map((tag, i) => (
+                                                    <span key={i} className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 text-white/25">
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        )}
                     </div>
 
                     {/* Bottom actions */}
@@ -859,7 +1031,7 @@ export default function Dashboard() {
                                 Carbon Metrics <BarChart3 size={13} className="text-brand-gold/50" />
                             </h2>
                             <p className="text-[9px] text-white/25 font-medium">
-                                {selectedDistrict || selectedRegion || 'Ghana · National'}
+                                {hasActiveAnalysis ? (activeDistrict || activeRegion) : 'No active analysis'}
                             </p>
                         </div>
                     </div>
@@ -878,7 +1050,14 @@ export default function Dashboard() {
                         </div>
                     )}
 
-                    {/* KPI cards */}
+                    {!hasActiveAnalysis ? (
+                        <div className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-5 text-center">
+                            <span className="block text-[9px] font-semibold uppercase tracking-widest text-white/25">Metrics Ready</span>
+                            <p className="mt-2 text-[10px] leading-relaxed text-white/35">
+                                Select a region or district on the left, then press Run Analysis to load carbon metrics and trends.
+                            </p>
+                        </div>
+                    ) : (
                     <div className={`flex flex-col gap-3 transition-opacity duration-300 ${loadingMetrics ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                         {loadingMetrics && (
                             <div className="flex items-center justify-center gap-2 py-1">
@@ -893,7 +1072,7 @@ export default function Dashboard() {
                             unit={stockFmt.unit}
                             trendValue={stockTrend}
                             absoluteDelta={metrics.prevCarbonStock ? metrics.carbonStock - metrics.prevCarbonStock : null}
-                            prevYear={selectedYear ? selectedYear - 1 : null}
+                            prevYear={activeYear ? activeYear - 1 : null}
                             icon={TreePine}
                         />
                         <KPI
@@ -903,18 +1082,19 @@ export default function Dashboard() {
                             unit={lossFmt.unit}
                             trendValue={lossTrend}
                             absoluteDelta={metrics.prevCarbonLoss ? metrics.carbonLoss - metrics.prevCarbonLoss : null}
-                            prevYear={selectedYear ? selectedYear - 1 : null}
+                            prevYear={activeYear ? activeYear - 1 : null}
                             invertColor={true}
                             icon={Pickaxe}
                         />
                     </div>
+                    )}
 
                     {/* Year comparison panel */}
-                    {compareMode && (
+                    {hasActiveAnalysis && compareMode && (
                         <div className="rounded-xl border border-brand-gold/15 bg-brand-gold/[0.03]">
                             <div className="flex items-center justify-between px-3 py-2 border-b border-brand-gold/10">
                                 <span className="text-[9px] font-semibold text-brand-gold/40">
-                                    {selectedYear} vs {compareYear || '—'}
+                                    {activeYear} vs {compareYear || '—'}
                                 </span>
                                 {loadingCompare && <Loader2 size={10} className="animate-spin text-brand-gold/40" />}
                             </div>
@@ -928,7 +1108,7 @@ export default function Dashboard() {
                                         </div>
                                         <div className="flex flex-col gap-1.5 min-w-0">
                                             <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
-                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{selectedYear}</span>
+                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{activeYear}</span>
                                                 <span className="text-[clamp(10px,2.4vw,11px)] leading-tight font-black text-white/75 tabular-nums text-right min-w-0 break-words">{fmtNum(metrics.carbonStock)}</span>
                                             </div>
                                             <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
@@ -952,7 +1132,7 @@ export default function Dashboard() {
                                         </div>
                                         <div className="flex flex-col gap-1.5 min-w-0">
                                             <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
-                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{selectedYear}</span>
+                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{activeYear}</span>
                                                 <span className="text-[clamp(10px,2.4vw,11px)] leading-tight font-black text-white/75 tabular-nums text-right min-w-0 break-words">{fmtNum(metrics.carbonLoss)}</span>
                                             </div>
                                             <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
@@ -978,27 +1158,29 @@ export default function Dashboard() {
                     )}
 
                     {/* Takeaway */}
-                    {!loadingMetrics && takeaway && (
+                    {hasActiveAnalysis && !loadingMetrics && takeaway && (
                         <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${takeawayStyle[takeaway.type]}`}>
                             <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${takeawayDot[takeaway.type]}`} />
                             <span className="text-[10px] font-medium text-white/55 leading-snug">{takeaway.text}</span>
                         </div>
                     )}
 
-                    <div className="h-px bg-white/5 w-full" />
+                    {hasActiveAnalysis && <div className="h-px bg-white/5 w-full" />}
 
                     {/* Loss trend */}
+                    {hasActiveAnalysis && (
                     <div className="flex flex-col gap-3">
                         <span className="text-[9px] font-semibold text-white/30">Loss Trend</span>
                         <LossChart data={metrics.trend} loading={loadingMetrics} />
                     </div>
+                    )}
 
                 </div>
 
                 {/* Status bar */}
                 <div className="px-5 py-3 bg-brand-gold/5 border-t border-brand-gold/10 flex items-center justify-between shrink-0">
                     <span className="text-[8px] font-medium text-white/20">
-                        {selectedRegion ? `${selectedDistrict || selectedRegion} · ${selectedYear}` : `Ghana · ${selectedYear}`}
+                        {hasActiveAnalysis ? `${activeDistrict || activeRegion} · ${activeYear}` : 'Overview mode'}
                     </span>
                     <div className={`w-1.5 h-1.5 rounded-full ${systemStatus.dotClass}`} />
                 </div>
@@ -1033,7 +1215,7 @@ export default function Dashboard() {
                         <LegendPanel
                             isOpen={isLegendOpen}
                             onClose={() => setIsLegendOpen(false)}
-                            activeLayers={selectedLayers}
+                            activeLayers={visibleLegendLayers}
                             className={isMobile ? 'max-w-[calc(100vw-2rem)]' : ''}
                         />
                     </div>
@@ -1089,6 +1271,53 @@ export default function Dashboard() {
                 </GlassPanel>
             </div>
 
+            <div className="fixed bottom-20 right-4 z-30 flex flex-col items-end gap-3 md:hidden">
+                {showBasemaps && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-200">
+                        <GlassPanel className="flex min-w-[140px] flex-col rounded-lg p-1 shadow-2xl">
+                            {[
+                                { id: 'dark', label: 'Dark Matter' },
+                                { id: 'satellite', label: 'Satellite' },
+                                { id: 'osm', label: 'Classic Map' }
+                            ].map(opt => (
+                                <button
+                                    key={opt.id}
+                                    onClick={() => { setBasemap(opt.id); setShowBasemaps(false); }}
+                                    className={`rounded px-3 py-2.5 text-left text-[10px] font-semibold transition-colors ${basemap === opt.id ? 'bg-brand-gold/20 text-brand-gold' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </GlassPanel>
+                    </div>
+                )}
+                <GlassPanel className="flex flex-col gap-1 rounded-lg p-1 shadow-2xl">
+                    <button onClick={() => setZoomCommand({ type: 'in', t: Date.now() })} className="rounded p-2.5 text-brand-faded transition-all hover:bg-brand-gold/20 hover:text-white" title="Zoom In">
+                        <Plus size={18} />
+                    </button>
+                    <div className="mx-2 h-px bg-brand-gold/10" />
+                    <button onClick={() => setZoomCommand({ type: 'out', t: Date.now() })} className="rounded p-2.5 text-brand-faded transition-all hover:bg-brand-gold/20 hover:text-white" title="Zoom Out">
+                        <Minus size={18} />
+                    </button>
+                    <div className="mx-2 h-px bg-brand-gold/10" />
+                    <button
+                        onClick={() => setShowBasemaps(!showBasemaps)}
+                        className={`rounded p-2.5 transition-all ${showBasemaps ? 'bg-brand-gold/20 text-brand-gold' : 'text-brand-faded hover:bg-brand-gold/20 hover:text-white'}`}
+                        title="Switch Basemap"
+                    >
+                        <MapIcon size={18} />
+                    </button>
+                    <div className="mx-2 h-px bg-brand-gold/10" />
+                    <button
+                        onClick={() => setIsLegendOpen(prev => !prev)}
+                        className={`rounded p-2.5 transition-all ${isLegendOpen ? 'bg-brand-gold/20 text-brand-gold' : 'text-brand-faded hover:bg-brand-gold/20 hover:text-white'}`}
+                        title="Toggle Legend"
+                    >
+                        <Layers size={18} />
+                    </button>
+                </GlassPanel>
+            </div>
+
             {/* About modal — shows on first visit or when triggered */}
             <AboutModal
                 isOpen={isAboutOpen}
@@ -1108,14 +1337,6 @@ export default function Dashboard() {
                 >
                     <Menu size={18} />
                     <span className="text-[8px] font-semibold">Filters</span>
-                </button>
-                <div className="w-px bg-brand-gold/10 my-3" />
-                <button
-                    onClick={() => setIsLegendOpen(prev => !prev)}
-                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${isLegendOpen ? 'text-brand-gold' : 'text-white/25'}`}
-                >
-                    <Layers size={18} />
-                    <span className="text-[8px] font-semibold">Legend</span>
                 </button>
                 <div className="w-px bg-brand-gold/10 my-3" />
                 <button

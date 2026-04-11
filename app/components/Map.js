@@ -44,13 +44,28 @@ function MapController({ bounds, zoomCommand, mapCommand }) {
 }
 
 // ─── Overview district layer (GeoJSON, shown before any selection) ────────────
-function OverviewDistrictsLayer({ geojson, onFeatureClick, analysisMode = false }) {
+function OverviewDistrictsLayer({ geojson, onFeatureClick, analysisMode = false, selectedDistrict = '' }) {
     const map = useMap();
     const tooltipRef = useRef(null);
     const hoveredLayerRef = useRef(null);
 
-    const defaultStyle = useMemo(() => (
-        analysisMode ? {
+    const defaultStyle = useCallback((feature) => {
+        const districtName = feature.properties?.DISTRICTS
+            || feature.properties?.District
+            || feature.properties?.NAME
+            || '';
+        const isSelected = selectedDistrict && districtName === selectedDistrict;
+
+        if (isSelected) {
+            return {
+                color: 'rgba(250, 204, 21, 0.95)',
+                weight: 2.2,
+                fillColor: 'rgba(250, 204, 21, 0.10)',
+                fillOpacity: 1,
+            };
+        }
+
+        return analysisMode ? {
             color: 'rgba(255, 255, 255, 0.12)',
             weight: 0.8,
             fillColor: 'transparent',
@@ -60,8 +75,8 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick, analysisMode = false 
             weight: 1,
             fillColor: 'transparent',
             fillOpacity: 0,
-        }
-    ), [analysisMode]);
+        };
+    }, [analysisMode, selectedDistrict]);
 
     const hoverStyle = useMemo(() => ({
         color: 'rgba(251, 191, 36, 0.7)',
@@ -79,7 +94,7 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick, analysisMode = false 
 
     const resetHovered = useCallback(() => {
         if (hoveredLayerRef.current) {
-            hoveredLayerRef.current.setStyle(defaultStyle);
+            hoveredLayerRef.current.setStyle(defaultStyle(hoveredLayerRef.current.feature));
             hoveredLayerRef.current = null;
         }
     }, [defaultStyle]);
@@ -145,13 +160,29 @@ function OverviewDistrictsLayer({ geojson, onFeatureClick, analysisMode = false 
 }
 
 // ─── Overview region layer (GeoJSON, always subtle, shown before any selection)
-function OverviewRegionsLayer({ geojson, onRegionClick, analysisMode = false }) {
+function OverviewRegionsLayer({ geojson, onRegionClick, analysisMode = false, selectedRegion = '' }) {
     const map = useMap();
     const tooltipRef = useRef(null);
     const hoveredLayerRef = useRef(null);
 
-    const defaultStyle = useMemo(() => (
-        analysisMode ? {
+    const defaultStyle = useCallback((feature) => {
+        const regionName = feature.properties?.REGIONS
+            || feature.properties?.Region
+            || feature.properties?.NAME
+            || '';
+        const isSelected = selectedRegion && regionName === selectedRegion;
+
+        if (isSelected) {
+            return {
+                color: 'rgba(251, 191, 36, 0.92)',
+                weight: 2.2,
+                fillColor: 'rgba(251, 191, 36, 0.06)',
+                fillOpacity: 1,
+                dashArray: null,
+            };
+        }
+
+        return analysisMode ? {
             color: 'rgba(255, 255, 255, 0.20)',
             weight: 1,
             fillColor: 'transparent',
@@ -163,8 +194,8 @@ function OverviewRegionsLayer({ geojson, onRegionClick, analysisMode = false }) 
             fillColor: 'transparent',
             fillOpacity: 0,
             dashArray: '4 3',
-        }
-    ), [analysisMode]);
+        };
+    }, [analysisMode, selectedRegion]);
 
     const hoverStyle = useMemo(() => ({
         color: 'rgba(255, 255, 255, 0.7)',
@@ -183,7 +214,7 @@ function OverviewRegionsLayer({ geojson, onRegionClick, analysisMode = false }) 
 
     const resetHovered = useCallback(() => {
         if (hoveredLayerRef.current) {
-            hoveredLayerRef.current.setStyle(defaultStyle);
+            hoveredLayerRef.current.setStyle(defaultStyle(hoveredLayerRef.current.feature));
             hoveredLayerRef.current = null;
         }
     }, [defaultStyle]);
@@ -355,6 +386,7 @@ export default function MapComponent({
                         geojson={boundaryGeoJSON.regions}
                         onRegionClick={onRegionClick}
                         analysisMode={analysisMode}
+                        selectedRegion={region}
                     />
                 )}
                 {boundaryGeoJSON.districts && (
@@ -362,6 +394,7 @@ export default function MapComponent({
                         geojson={boundaryGeoJSON.districts}
                         onFeatureClick={onDistrictClick}
                         analysisMode={analysisMode}
+                        selectedDistrict={district}
                     />
                 )}
 

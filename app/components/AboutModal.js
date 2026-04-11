@@ -1,9 +1,23 @@
 "use client";
 
+import { useEffect } from 'react';
 import { X, ShieldAlert, Database, HelpCircle } from 'lucide-react';
 import { BrandMark } from './BrandMark';
 
 export function AboutModal({ isOpen = false, onClose, onOpenTour, canOpenTour = true }) {
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                onClose?.();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
     return (

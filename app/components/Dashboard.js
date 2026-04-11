@@ -115,7 +115,7 @@ function getCurrentViewChips({ hasActiveAnalysis, activeScope, activeRegion, act
     } else {
         chips.push({
             label: 'Current View',
-            value: 'Overview Mode',
+                                value: 'Choose an area to begin',
             tone: 'neutral',
         });
     }
@@ -181,10 +181,8 @@ export default function Dashboard() {
     const [showBasemaps, setShowBasemaps] = useState(false);
 
     // Boundary GeoJSON (loaded once on mount)
-    const [boundaryGeoJSON, setBoundaryGeoJSON] = useState({ districts: null, regions: null });
 
     // Pending district — set when a map click triggers region+district together
-    const [pendingDistrict, setPendingDistrict] = useState(null);
 
     // Filters
     const [years, setYears] = useState([]);
@@ -245,7 +243,6 @@ export default function Dashboard() {
         setActiveRegion('');
         setActiveDistrict('');
         setDistricts([]);
-        setPendingDistrict(null);
         setAnalysisScope('region');
         setSelectedLayers(['carbon', 'mining']);
         setCompareMode(false);
@@ -265,20 +262,6 @@ export default function Dashboard() {
         }
         setMapCommand({ type: 'reset', t: Date.now() });
     }, [years]);
-
-    const handleDistrictClick = useCallback((districtName, regionName) => {
-        if (regionName) {
-            setAnalysisScope('district');
-            setPendingDistrict(districtName);
-            setDraftRegion(regionName);
-        }
-    }, []);
-
-    const handleRegionClick = useCallback((regionName) => {
-        setAnalysisScope('region');
-        setDraftRegion(regionName);
-        setDraftDistrict('');
-    }, []);
 
     const closeAboutModal = useCallback(() => {
         if (typeof window !== 'undefined') {
@@ -352,30 +335,6 @@ export default function Dashboard() {
         }
     }, [canRunAnalysis, analysisScope, draftYear, draftRegion, draftDistrict, isMobile]);
 
-    // 0. Fetch full boundary GeoJSON once on mount
-    useEffect(() => {
-        const abortController = new AbortController();
-
-        const fetchBoundaries = async () => {
-            try {
-                const res = await fetch('/api/gee/boundaries', {
-                    signal: abortController.signal,
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                if (!data.error) {
-                    setBoundaryGeoJSON({ districts: data.districts || null, regions: data.regions || null });
-                }
-            } catch (err) {
-                if (err.name === 'AbortError') return;
-                console.error('Boundary fetch error:', err);
-            }
-        };
-        fetchBoundaries();
-
-        return () => abortController.abort();
-    }, []);
-
     // 1. Fetch metadata
     useEffect(() => {
         const abortController = new AbortController();
@@ -436,11 +395,7 @@ export default function Dashboard() {
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 setDistricts(data.districts || []);
-                // If a district was pre-selected via map click, apply it now
-                if (pendingDistrict) {
-                    setDraftDistrict(pendingDistrict);
-                    setPendingDistrict(null);
-                } else if (analysisScope !== 'district') {
+                if (analysisScope !== 'district') {
                     setDraftDistrict('');
                 }
             } catch (err) {
@@ -457,7 +412,7 @@ export default function Dashboard() {
         fetchDistricts();
 
         return () => abortController.abort();
-    }, [draftRegion, pendingDistrict, analysisScope]);
+    }, [draftRegion, analysisScope]);
 
     // 3. Fetch metrics
     useEffect(() => {
@@ -671,9 +626,6 @@ export default function Dashboard() {
                     zoomCommand={zoomCommand}
                     mapCommand={mapCommand}
                     basemap={basemap}
-                    boundaryGeoJSON={boundaryGeoJSON}
-                    onDistrictClick={handleDistrictClick}
-                    onRegionClick={handleRegionClick}
                 />
             </div>
 
@@ -938,7 +890,7 @@ export default function Dashboard() {
                     <div className="rounded-xl border border-brand-gold/20 bg-brand-gold/[0.05] p-3">
                         <div className="mb-3 flex items-start justify-between gap-3">
                             <div>
-                                <span className="block text-[9px] font-semibold uppercase tracking-widest text-brand-gold/65">Ready To Run</span>
+                                <span className="block text-[9px] font-semibold uppercase tracking-widest text-brand-gold/65">Run Analysis</span>
                                 <p className="mt-1 text-[9px] leading-snug text-white/30">
                                     {canRunAnalysis
                                         ? `Analyze ${analysisScope === 'district' ? `${draftDistrict}, ${draftRegion}` : draftRegion} for ${draftYear}.`
@@ -968,7 +920,7 @@ export default function Dashboard() {
                         </div>
                         {visibleLegendLayers.length === 0 ? (
                             <div className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-3 text-[9px] text-white/25">
-                                Run an analysis to populate active layer sources for the current view.
+                                Run an analysis to show the layer sources for the selected area.
                             </div>
                         ) : (
                             visibleLegendLayers.filter(id => LAYER_INFO[id]).map(layerId => {
@@ -1031,7 +983,7 @@ export default function Dashboard() {
                                 Carbon Metrics <BarChart3 size={13} className="text-brand-gold/50" />
                             </h2>
                             <p className="text-[9px] text-white/25 font-medium">
-                                {hasActiveAnalysis ? (activeDistrict || activeRegion) : 'No active analysis'}
+                                {hasActiveAnalysis ? (activeDistrict || activeRegion) : 'Choose an area and run analysis'}
                             </p>
                         </div>
                     </div>
@@ -1054,7 +1006,7 @@ export default function Dashboard() {
                         <div className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-5 text-center">
                             <span className="block text-[9px] font-semibold uppercase tracking-widest text-white/25">Metrics Ready</span>
                             <p className="mt-2 text-[10px] leading-relaxed text-white/35">
-                                Select a region or district on the left, then press Run Analysis to load carbon metrics and trends.
+                                Choose a region or district on the left, then press Run Analysis to load carbon metrics and trends.
                             </p>
                         </div>
                     ) : (
@@ -1180,7 +1132,7 @@ export default function Dashboard() {
                 {/* Status bar */}
                 <div className="px-5 py-3 bg-brand-gold/5 border-t border-brand-gold/10 flex items-center justify-between shrink-0">
                     <span className="text-[8px] font-medium text-white/20">
-                        {hasActiveAnalysis ? `${activeDistrict || activeRegion} · ${activeYear}` : 'Overview mode'}
+                        {hasActiveAnalysis ? `${activeDistrict || activeRegion} · ${activeYear}` : 'Waiting for analysis'}
                     </span>
                     <div className={`w-1.5 h-1.5 rounded-full ${systemStatus.dotClass}`} />
                 </div>

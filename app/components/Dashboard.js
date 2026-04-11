@@ -110,8 +110,8 @@ export default function Dashboard() {
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
     const [isRightCollapsed, setIsRightCollapsed] = useState(true);
     const [isLegendOpen, setIsLegendOpen] = useState(false);
-    const [tourTrigger, setTourTrigger] = useState(false);
-    const [aboutTrigger, setAboutTrigger] = useState(false);
+    const [tourTrigger, setTourTrigger] = useState(0);
+    const [isAboutOpen, setIsAboutOpen] = useState(false);
 
     // Mobile
     const [isMobile, setIsMobile] = useState(false);
@@ -122,6 +122,16 @@ export default function Dashboard() {
         check();
         window.addEventListener('resize', check);
         return () => window.removeEventListener('resize', check);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const seen = window.localStorage.getItem('ecopulse_about_seen');
+        if (seen) return;
+
+        const timeoutId = window.setTimeout(() => setIsAboutOpen(true), 600);
+        return () => window.clearTimeout(timeoutId);
     }, []);
 
     // Map controls
@@ -184,12 +194,6 @@ export default function Dashboard() {
         return num.toFixed(0);
     };
 
-    const clearFilters = useCallback(() => {
-        setSelectedRegion('');
-        setSelectedDistrict('');
-        setDistricts([]);
-    }, []);
-
     const resetDashboard = useCallback(() => {
         setSelectedRegion('');
         setSelectedDistrict('');
@@ -219,6 +223,18 @@ export default function Dashboard() {
         setSelectedRegion(regionName);
         setSelectedDistrict('');
     }, []);
+
+    const closeAboutModal = useCallback(() => {
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem('ecopulse_about_seen', '1');
+        }
+        setIsAboutOpen(false);
+    }, []);
+
+    const openTourFromAbout = useCallback(() => {
+        closeAboutModal();
+        setTourTrigger(prev => prev + 1);
+    }, [closeAboutModal]);
 
     const hasFilters = selectedRegion !== '' || selectedDistrict !== '';
 
@@ -563,9 +579,8 @@ export default function Dashboard() {
                     selectedYear={selectedYear}
                     selectedRegion={selectedRegion}
                     selectedDistrict={selectedDistrict}
-                    onReset={resetDashboard}
-                    onAbout={() => setAboutTrigger(t => !t)}
-                    onTour={() => { setTourTrigger(t => !t); }}
+                    onAbout={() => setIsAboutOpen(true)}
+                    onTour={() => setTourTrigger(prev => prev + 1)}
                 />
             </div>
 
@@ -683,11 +698,11 @@ export default function Dashboard() {
 
                         {hasFilters && (
                             <button
-                                onClick={clearFilters}
+                                onClick={resetDashboard}
                                 className="flex items-center justify-center gap-1.5 py-2 text-[9px] font-medium text-white/25 hover:text-white/50 border border-white/8 hover:border-white/15 rounded transition-all"
                             >
                                 <RotateCcw size={10} />
-                                Clear filters
+                                Restore default view
                             </button>
                         )}
                     </div>
@@ -1006,14 +1021,20 @@ export default function Dashboard() {
             </button>
 
             {/* Legend floating panel + button — desktop only, mirrors zoom controls pattern */}
-            <div className={`hidden md:flex absolute bottom-12 z-30 flex-col gap-3 items-start transition-all duration-500 ${isLeftCollapsed ? 'left-6' : 'left-[336px]'}`}>
+            <div
+                className={`absolute z-30 flex flex-col items-start gap-3 transition-all duration-500 ${
+                    isMobile
+                        ? 'bottom-20 left-4'
+                        : `hidden md:flex bottom-12 ${isLeftCollapsed ? 'left-6' : 'left-[336px]'}`
+                }`}
+            >
                 {isLegendOpen && (
-                    <div className="mb-1 animate-in fade-in slide-in-from-left-4 duration-200">
+                    <div className={`mb-1 animate-in fade-in duration-200 ${isMobile ? 'slide-in-from-bottom-4' : 'slide-in-from-left-4'}`}>
                         <LegendPanel
                             isOpen={isLegendOpen}
                             onClose={() => setIsLegendOpen(false)}
                             activeLayers={selectedLayers}
-                            className=""
+                            className={isMobile ? 'max-w-[calc(100vw-2rem)]' : ''}
                         />
                     </div>
                 )}
@@ -1069,7 +1090,12 @@ export default function Dashboard() {
             </div>
 
             {/* About modal — shows on first visit or when triggered */}
-            <AboutModal onOpenTour={() => setTourTrigger(t => !t)} forceOpen={aboutTrigger} />
+            <AboutModal
+                isOpen={isAboutOpen}
+                onClose={closeAboutModal}
+                onOpenTour={openTourFromAbout}
+                canOpenTour={!isMobile}
+            />
 
             {/* Tour guide — desktop only, auto-starts on first visit */}
             <TourGuide autoStart={tourTrigger} />
@@ -1082,6 +1108,14 @@ export default function Dashboard() {
                 >
                     <Menu size={18} />
                     <span className="text-[8px] font-semibold">Filters</span>
+                </button>
+                <div className="w-px bg-brand-gold/10 my-3" />
+                <button
+                    onClick={() => setIsLegendOpen(prev => !prev)}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${isLegendOpen ? 'text-brand-gold' : 'text-white/25'}`}
+                >
+                    <Layers size={18} />
+                    <span className="text-[8px] font-semibold">Legend</span>
                 </button>
                 <div className="w-px bg-brand-gold/10 my-3" />
                 <button

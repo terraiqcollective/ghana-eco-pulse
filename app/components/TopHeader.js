@@ -1,43 +1,40 @@
-import { MapPin, Calendar, RotateCcw, HelpCircle, Info } from 'lucide-react';
+import { MapPin, Calendar, HelpCircle, Info } from 'lucide-react';
 import { BrandMark } from './BrandMark';
 
-export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onReset, onTour, onAbout }) => {
+export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onTour, onAbout }) => {
     const scopeLabel = selectedDistrict || selectedRegion || null;
 
     return (
-        <header className="absolute top-0 left-0 right-0 z-40 h-16 bg-brand-deep/95 backdrop-blur-md border-b border-brand-gold/20 flex items-center justify-between px-6 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
-            {/* Branding */}
+        <header className="absolute left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-brand-gold/20 bg-brand-deep/95 px-4 shadow-[0_10px_30px_rgba(0,0,0,0.28)] backdrop-blur-md sm:px-6">
             <div className="flex items-center gap-3.5">
-                <BrandMark className="w-10 h-10 shrink-0 rounded-[10px]" />
+                <BrandMark className="h-10 w-10 shrink-0 rounded-[10px]" />
                 <div>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-white text-base font-semibold tracking-[0.08em] uppercase leading-none">
+                        <h1 className="text-base font-semibold uppercase leading-none tracking-[0.08em] text-white">
                             <span className="text-white/92">Eco</span> <span className="text-brand-gold">Pulse</span>
                         </h1>
                     </div>
-                    <p className="text-[8px] text-white/30 font-medium mt-0.5 tracking-[0.16em] uppercase">
+                    <p className="mt-0.5 text-[8px] font-medium uppercase tracking-[0.16em] text-white/30">
                         Forest Carbon Monitoring
                     </p>
                 </div>
             </div>
 
-            {/* Right side — scope pills + reset */}
-            <div className="flex items-center gap-2.5">
-                {/* Scope pills — hidden on small screens */}
+            <div className="flex items-center gap-2">
                 {(selectedYear || scopeLabel) && (
-                    <div className="hidden sm:flex items-center gap-2">
+                    <div className="hidden items-center gap-2 sm:flex">
                         {selectedYear && (
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-white/10 rounded">
+                            <div className="flex items-center gap-1.5 rounded border border-white/10 bg-white/[0.03] px-3 py-1.5">
                                 <Calendar size={11} className="text-white/40" />
-                                <span className="text-[10px] font-semibold text-white/70 tabular-nums tracking-widest">
+                                <span className="text-[10px] font-semibold tracking-widest text-white/70 tabular-nums">
                                     {selectedYear}
                                 </span>
                             </div>
                         )}
                         {scopeLabel && (
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-white/10 rounded max-w-[200px]">
-                                <MapPin size={11} className="text-white/40 shrink-0" />
-                                <span className="text-[10px] font-semibold text-white/70 tracking-wider truncate">
+                            <div className="flex max-w-[200px] items-center gap-1.5 rounded border border-white/10 bg-white/[0.03] px-3 py-1.5">
+                                <MapPin size={11} className="shrink-0 text-white/40" />
+                                <span className="truncate text-[10px] font-semibold tracking-wider text-white/70">
                                     {scopeLabel}
                                 </span>
                             </div>
@@ -45,27 +42,25 @@ export const TopHeader = ({ selectedYear, selectedRegion, selectedDistrict, onRe
                     </div>
                 )}
 
-                {/* Help / tour button */}
                 {onTour && (
                     <button
                         onClick={onTour}
                         title="Help"
-                        className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-white/20 text-white/25 hover:text-white/60 transition-all duration-200"
+                        className="hidden items-center gap-1.5 rounded border border-white/10 px-2.5 py-1.5 text-white/25 transition-all duration-200 hover:border-white/20 hover:text-white/60 md:flex md:px-3"
                     >
                         <HelpCircle size={11} />
-                        <span className="text-[9px] font-semibold hidden sm:block">Help</span>
+                        <span className="hidden text-[9px] font-semibold sm:block">Help</span>
                     </button>
                 )}
 
-                {/* Info / About button */}
                 {onAbout && (
                     <button
                         onClick={onAbout}
                         title="About this portal"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-brand-gold/30 text-white/20 hover:text-brand-gold transition-all duration-200"
+                        className="flex items-center gap-1.5 rounded border border-white/10 px-2.5 py-1.5 text-white/20 transition-all duration-200 hover:border-brand-gold/30 hover:text-brand-gold sm:px-3"
                     >
                         <Info size={11} />
-                        <span className="text-[9px] font-semibold hidden sm:block">About</span>
+                        <span className="hidden text-[9px] font-semibold sm:block">About</span>
                     </button>
                 )}
             </div>

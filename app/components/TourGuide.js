@@ -96,7 +96,7 @@ export function TourGuide({ autoStart = false }) {
     }, [step]);
 
     useEffect(() => {
-        if (autoStart) {
+        if (autoStart > 0) {
             const timeoutId = setTimeout(() => startTour(), 0);
             return () => clearTimeout(timeoutId);
         }

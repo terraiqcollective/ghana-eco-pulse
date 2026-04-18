@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/earthengine": "^1.7.9",
+    "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
     "google-auth-library": "^10.5.0",
     "leaflet": "^1.9.4",

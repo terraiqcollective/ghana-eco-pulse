@@ -14,6 +14,7 @@ import {
     Layers,
     Loader2,
     MapPin,
+    Pentagon,
     Maximize2,
     Menu,
     Minimize2,
@@ -40,7 +41,7 @@ const ANALYSIS_SCOPES = {
 
 const LAYER_INFO = {
     carbon: { name: 'Carbon stock', source: 'GEDI mosaics and Google Satellite Embeddings', dot: 'bg-emerald-500' },
-    mining: { name: 'Mining loss', source: 'Planet NICFI and U-Net mining activity detection', dot: 'bg-red-500' },
+    mining: { name: 'Mining loss', source: 'CERSGIS', dot: 'bg-red-500' },
     region: { name: 'Region boundary', source: 'Ghana Statistical Service (GSS)', dot: 'bg-white/50' },
     district: { name: 'District boundary', source: 'Ghana Statistical Service (GSS)', dot: 'bg-yellow-400' },
 };
@@ -436,7 +437,7 @@ export default function Dashboard() {
         <div className="relative h-screen w-screen overflow-hidden bg-brand-deep text-white selection:bg-brand-gold/30">
             <div id="tour-map" className="absolute inset-0 z-0">
                 <MapComponent
-                    year={activeYear}
+                    year={activeYear ?? (years.length > 0 ? parseInt(years[years.length - 1]) : null)}
                     region={activeRegion}
                     district={activeDistrict}
                     activeLayers={selectedLayers}
@@ -609,8 +610,8 @@ export default function Dashboard() {
                             <div className="mt-2">
                                 <FloatingToggle label="Carbon stock" active={selectedLayers.includes('carbon')} onToggle={() => toggleLayer('carbon')} icon={TreePine} iconColor="#6f8f63" />
                                 <FloatingToggle label="Mining loss" active={selectedLayers.includes('mining')} onToggle={() => toggleLayer('mining')} icon={Pickaxe} iconColor="#e05252" />
-                                {hasActiveAnalysis ? <FloatingToggle label="Region boundary" active={selectedLayers.includes('region')} onToggle={() => toggleLayer('region')} icon={Layers} iconColor="#c8c8c8" /> : null}
-                                {activeDistrict ? <FloatingToggle label="District boundary" active={selectedLayers.includes('district')} onToggle={() => toggleLayer('district')} icon={MapPin} iconColor="#d4b27a" /> : null}
+                                {hasActiveAnalysis ? <FloatingToggle label="Region boundary" active={selectedLayers.includes('region')} onToggle={() => toggleLayer('region')} icon={Pentagon} iconColor="#c8c8c8" /> : null}
+                                {activeDistrict ? <FloatingToggle label="District boundary" active={selectedLayers.includes('district')} onToggle={() => toggleLayer('district')} icon={Pentagon} iconColor="#d4b27a" /> : null}
                             </div>
                         </div>
                     </div>

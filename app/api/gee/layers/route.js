@@ -20,7 +20,6 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Year is required' }, { status: 400 });
         }
 
-        // Get Carbon and Mining Images
         const carbonImg = ee.ImageCollection(config.CARBON_VIS)
             .filter(ee.Filter.eq('YEAR', year))
             .mosaic();
@@ -29,9 +28,30 @@ export async function POST(request) {
             .filter(ee.Filter.eq('YEAR', year))
             .mosaic();
 
-        // Determine boundary
+        // National view — no region selected, skip boundaries and hover GeoJSON
+        if (!region) {
+            const pilotArea = ee.FeatureCollection(config.PILOT_AREA);
+            const [carbonMapId, miningMapId, nationalBounds] = await Promise.all([
+                new Promise((res, rej) => carbonImg.getMapId({ min: 1, max: 8, palette: ['black', 'green'] }, (id, err) => err ? rej(err) : res(id))),
+                new Promise((res, rej) => miningImg.getMapId({ min: 0, max: 7, palette: ['black', 'red'] }, (id, err) => err ? rej(err) : res(id))),
+                new Promise((res, rej) => pilotArea.geometry().bounds().getInfo((geo, err) => {
+                    if (err) return rej(err);
+                    if (!geo || !geo.coordinates) return res(null);
+                    const coords = geo.coordinates[0];
+                    const lats = coords.map(c => c[1]);
+                    const lngs = coords.map(c => c[0]);
+                    res([[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]]);
+                })),
+            ]);
+            return NextResponse.json({
+                layers: { carbon: carbonMapId.urlFormat, mining: miningMapId.urlFormat, region: null, district: null },
+                bounds: nationalBounds,
+                hoverGeoJSON: null,
+            });
+        }
+
+        // Regional / district view
         let areaOfInterest = ee.FeatureCollection(config.PILOT_AREA);
-        let boundaryColor = 'white';
         let boundsGeometry = areaOfInterest.geometry();
 
         if (district) {
@@ -39,34 +59,29 @@ export async function POST(request) {
                 .filter(ee.Filter.eq('DISTRICTS', district));
             areaOfInterest = dFeature;
             boundsGeometry = dFeature.geometry();
-            boundaryColor = 'yellow';
-        } else if (region) {
+        } else {
             const rFeature = ee.FeatureCollection(config.CARBON_FC)
                 .filter(ee.Filter.eq('REGIONS', region));
             areaOfInterest = rFeature;
             boundsGeometry = rFeature.geometry();
-            boundaryColor = 'white';
         }
 
-        // Create boundary layers - filtered by selection
-        let regionFC = ee.FeatureCollection(config.CARBON_FC);
-        if (region) {
-            regionFC = regionFC.filter(ee.Filter.eq('REGIONS', region));
-        }
+        const regionFC = ee.FeatureCollection(config.CARBON_FC)
+            .filter(ee.Filter.eq('REGIONS', region));
         const regionBoundaryImg = ee.Image().paint(regionFC, 0, 1.5);
 
-        // Only show yellow boundary for the SPECIFIC focus district
-        let districtFC = ee.FeatureCollection(config.MINING_FC);
-        if (district) {
-            districtFC = districtFC.filter(ee.Filter.eq('DISTRICTS', district));
-        } else {
-            // If no district selected, don't show any yellow boundaries
-            districtFC = ee.FeatureCollection([]);
-        }
-        const districtBoundaryImg = ee.Image().paint(districtFC, 0, 2); // Slightly thicker for focus area
+        let districtFC = district
+            ? ee.FeatureCollection(config.MINING_FC).filter(ee.Filter.eq('DISTRICTS', district))
+            : ee.FeatureCollection([]);
+        const districtBoundaryImg = ee.Image().paint(districtFC, 0, 2);
 
-        // Get Map IDs
-        const [carbonMapId, miningMapId, regionMapId, districtMapId, bounds] = await Promise.all([
+        // District GeoJSON for hover tooltips — simplified to 500m to keep response small
+        const hoverFC = district
+            ? ee.FeatureCollection(config.MINING_FC).filter(ee.Filter.eq('DISTRICTS', district))
+            : ee.FeatureCollection(config.MINING_FC).filter(ee.Filter.eq('REGIONS', region));
+        const simplifiedHoverFC = hoverFC.map(f => f.simplify(500));
+
+        const [carbonMapId, miningMapId, regionMapId, districtMapId, bounds, hoverGeoJSON] = await Promise.all([
             new Promise((res, rej) => carbonImg.getMapId({ min: 1, max: 8, palette: ['black', 'green'] }, (id, err) => err ? rej(err) : res(id))),
             new Promise((res, rej) => miningImg.getMapId({ min: 0, max: 7, palette: ['black', 'red'] }, (id, err) => err ? rej(err) : res(id))),
             new Promise((res, rej) => regionBoundaryImg.getMapId({ palette: 'white' }, (id, err) => err ? rej(err) : res(id))),
@@ -74,15 +89,12 @@ export async function POST(request) {
             new Promise((res, rej) => boundsGeometry.bounds().getInfo((geo, err) => {
                 if (err) return rej(err);
                 if (!geo || !geo.coordinates) return res(null);
-
                 const coords = geo.coordinates[0];
                 const lats = coords.map(c => c[1]);
                 const lngs = coords.map(c => c[0]);
-                res([
-                    [Math.min(...lats), Math.min(...lngs)],
-                    [Math.max(...lats), Math.max(...lngs)]
-                ]);
-            }))
+                res([[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]]);
+            })),
+            new Promise((res, rej) => simplifiedHoverFC.getInfo((data, err) => err ? rej(err) : res(data))),
         ]);
 
         return NextResponse.json({
@@ -92,7 +104,8 @@ export async function POST(request) {
                 region: regionMapId.urlFormat,
                 district: districtMapId.urlFormat,
             },
-            bounds
+            bounds,
+            hoverGeoJSON,
         });
 
     } catch (error) {

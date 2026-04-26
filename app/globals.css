@@ -200,3 +200,25 @@ select:focus {
     border: 1px solid rgba(243, 239, 228, 0.08);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
+
+/* District / region hover tooltip */
+.district-tooltip {
+    background: linear-gradient(180deg, rgba(4, 5, 7, 0.94) 0%, rgba(2, 3, 5, 0.97) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(243, 239, 228, 0.10);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    color: rgba(243, 239, 228, 0.88);
+    font-family: var(--font-ui), sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 5px 10px;
+    white-space: nowrap;
+}
+
+/* Remove Leaflet's default tooltip arrow and white background */
+.district-tooltip::before {
+    display: none;
+}

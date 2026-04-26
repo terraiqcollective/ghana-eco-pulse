@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -15,14 +15,21 @@ L.Icon.Default.mergeOptions({
     shadowSize: [0, 0],
 });
 
-function MapController({ bounds, zoomCommand, mapCommand }) {
+function MapController({ bounds, region, zoomCommand, mapCommand }) {
     const map = useMap();
+    const nationalCenterRef = useRef(null);
 
     useEffect(() => {
-        if (bounds && bounds.length === 2) {
+        if (!bounds || bounds.length !== 2) return;
+        if (!region) {
+            const centerLat = (bounds[0][0] + bounds[1][0]) / 2;
+            const centerLng = (bounds[0][1] + bounds[1][1]) / 2;
+            nationalCenterRef.current = [centerLat, centerLng];
+            map.flyTo([centerLat, centerLng], 9, { duration: 1.5, easeLinearity: 0.25 });
+        } else {
             map.flyToBounds(bounds, { duration: 1.5, easeLinearity: 0.25 });
         }
-    }, [bounds, map]);
+    }, [bounds, region, map]);
 
     useEffect(() => {
         if (!zoomCommand) return;
@@ -33,7 +40,8 @@ function MapController({ bounds, zoomCommand, mapCommand }) {
     useEffect(() => {
         if (!mapCommand) return;
         if (mapCommand.type === 'reset') {
-            map.flyTo([7.5, -1.2], 8, { duration: 1.8, easeLinearity: 0.25 });
+            const center = nationalCenterRef.current ?? [7.9, -1.2];
+            map.flyTo(center, 9, { duration: 1.8, easeLinearity: 0.25 });
         } else if (mapCommand.type === 'flyTo') {
             map.flyTo([mapCommand.lat, mapCommand.lng], mapCommand.zoom ?? 13, { duration: 1.5, easeLinearity: 0.25 });
         }
@@ -55,6 +63,7 @@ export default function MapComponent({
     const [prevLayers, setPrevLayers] = useState(null);
     const [fetchedFilters, setFetchedFilters] = useState({ year: null, region: null, district: null });
     const [bounds, setBounds] = useState(null);
+    const [hoverGeoJSON, setHoverGeoJSON] = useState(null);
     const [loading, setLoading] = useState(false);
     const clearPrevLayersTimeoutRef = useRef(null);
     const latestLayersRef = useRef(layers);
@@ -64,11 +73,12 @@ export default function MapComponent({
     }, [layers]);
 
     useEffect(() => {
-        if (!year || !region) {
+        if (!year) {
             setLayers({ carbon: null, mining: null, region: null, district: null });
             setPrevLayers(null);
             setFetchedFilters({ year: null, region: null, district: null });
             setBounds(null);
+            setHoverGeoJSON(null);
             setLoading(false);
             return;
         }
@@ -97,6 +107,7 @@ export default function MapComponent({
                 setLayers(data.layers);
                 setFetchedFilters({ year, region, district });
                 setBounds(data.bounds);
+                setHoverGeoJSON(data.hoverGeoJSON || null);
 
                 clearPrevLayersTimeoutRef.current = setTimeout(() => setPrevLayers(null), 2000);
             } catch (err) {
@@ -140,8 +151,9 @@ export default function MapComponent({
                 </div>
             )}
             <MapContainer
-                center={[7.5, -1.2]}
-                zoom={8}
+                center={[7.9, -1.2]}
+                zoom={9}
+                zoomSnap={0.5}
                 className="h-full w-full bg-brand-deep"
                 zoomControl={false}
             >
@@ -169,7 +181,31 @@ export default function MapComponent({
                     </>
                 )}
 
-                <MapController bounds={bounds} zoomCommand={zoomCommand} mapCommand={mapCommand} />
+                {hoverGeoJSON && (
+                    <GeoJSON
+                        key={`${fetchedFilters.region}-${fetchedFilters.district}`}
+                        data={hoverGeoJSON}
+                        style={() => ({
+                            fillOpacity: 0.01,
+                            fillColor: '#ffffff',
+                            weight: 0,
+                            opacity: 0,
+                        })}
+                        onEachFeature={(feature, layer) => {
+                            const name = feature.properties?.DISTRICTS || feature.properties?.REGIONS || '';
+                            if (name) {
+                                layer.bindTooltip(name, {
+                                    sticky: true,
+                                    className: 'district-tooltip',
+                                    direction: 'top',
+                                    offset: [0, -4],
+                                });
+                            }
+                        }}
+                    />
+                )}
+
+                <MapController bounds={bounds} region={region} zoomCommand={zoomCommand} mapCommand={mapCommand} />
             </MapContainer>
         </div>
     );

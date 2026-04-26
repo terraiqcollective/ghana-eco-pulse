@@ -449,13 +449,13 @@ export default function Dashboard() {
 
             <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_center,transparent_42%,rgba(14,11,8,0.58)_100%)]" />
 
-            <div className="absolute left-4 top-4 z-40 flex items-start gap-3 md:left-6 md:top-6">
-                <GlassPanel className="pointer-events-auto w-[18rem] rounded-2xl border-white/10">
-                    <div className="flex items-center gap-3 px-4 py-3">
-                        <BrandMark className="h-9 w-9 shrink-0" />
+            <div className="absolute left-4 top-4 z-40 flex items-start gap-3">
+                <GlassPanel className="pointer-events-auto w-[20rem] max-w-[calc(100vw-2rem)] rounded-2xl border-white/10">
+                    <div className="flex items-center gap-4 px-5 py-3.5">
+                        <BrandMark className="h-10 w-10 shrink-0" />
                         <div className="min-w-0">
-                            <h1 className="font-display text-[1.3rem] leading-none text-[#f3efe4]">EcoPulse</h1>
-                            <p className="mt-1 text-[9px] tracking-[0.12em] text-white/34 uppercase">Forest Carbon Monitoring</p>
+                            <h1 className="font-display text-[1.4rem] leading-none text-[#f3efe4]">EcoPulse</h1>
+                            <p className="mt-1 text-[9px] tracking-[0.14em] text-white/34 uppercase">Forest Carbon Monitoring</p>
                         </div>
                     </div>
                 </GlassPanel>

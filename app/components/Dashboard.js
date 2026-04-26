@@ -18,6 +18,7 @@ import {
     Menu,
     Minimize2,
     Minus,
+    MoreHorizontal,
     Plus,
     RotateCcw,
     Share2,
@@ -433,7 +434,7 @@ export default function Dashboard() {
 
     return (
         <div className="relative h-screen w-screen overflow-hidden bg-brand-deep text-white selection:bg-brand-gold/30">
-            <div className="absolute inset-0 z-0">
+            <div id="tour-map" className="absolute inset-0 z-0">
                 <MapComponent
                     year={activeYear}
                     region={activeRegion}
@@ -485,6 +486,14 @@ export default function Dashboard() {
                     <button onClick={() => setIsAboutOpen(true)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
                         <span className="flex items-center gap-2"><Info size={11} /> About</span>
                     </button>
+                </GlassPanel>
+                <GlassPanel className="pointer-events-auto rounded-xl p-1">
+                    <a href="https://github.com/terraiqcollective/ghana-eco-pulse" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        GitHub
+                    </a>
                 </GlassPanel>
             </div>
 
@@ -766,6 +775,66 @@ export default function Dashboard() {
             <AboutModal isOpen={isAboutOpen} onClose={closeAboutModal} onOpenTour={openTourFromAbout} canOpenTour={!isMobile} />
             <TourGuide autoStart={tourTrigger} />
 
+            {/* Mobile floating map controls — zoom + locate, bottom-right above nav */}
+            <div className="absolute bottom-20 right-4 z-40 flex flex-col gap-2 md:hidden">
+                <button onClick={handleLocate} title="My location" className="map-ctrl flex h-10 w-10 items-center justify-center rounded-2xl text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                    <Crosshair size={16} strokeWidth={1.6} />
+                </button>
+                <div className="map-ctrl flex flex-col overflow-hidden rounded-2xl">
+                    <button onClick={() => setZoomCommand({ type: 'in', t: Date.now() })} title="Zoom in" className="flex h-10 w-10 items-center justify-center text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                        <Plus size={15} strokeWidth={2} />
+                    </button>
+                    <div className="mx-2.5 h-px bg-white/8" />
+                    <button onClick={() => setZoomCommand({ type: 'out', t: Date.now() })} title="Zoom out" className="flex h-10 w-10 items-center justify-center text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                        <Minus size={15} strokeWidth={2} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Mobile More sheet — slides up above the bottom nav */}
+            {mobilePanel === 'more' ? (
+                <div className="fixed bottom-14 left-0 right-0 z-40 md:hidden" style={{ background: 'linear-gradient(180deg,rgba(4,5,7,0.97)0%,rgba(2,3,5,0.99)100%)', backdropFilter: 'blur(16px) saturate(120%)', WebkitBackdropFilter: 'blur(16px) saturate(120%)', borderTop: '1px solid rgba(243,239,228,0.08)' }}>
+                    <div className="px-4 py-3">
+                        <p className="mb-3 text-[9px] font-bold tracking-[0.14em] text-white/40 uppercase">Actions</p>
+                        <div className="grid grid-cols-4 gap-2">
+                            <button onClick={() => { setIsAboutOpen(true); setMobilePanel(null); }} className="flex flex-col items-center gap-1.5 rounded-xl py-3 text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                                <Info size={18} strokeWidth={1.6} />
+                                <span className="text-[9px] font-medium">About</span>
+                            </button>
+                            <a href="https://github.com/terraiqcollective/ghana-eco-pulse" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1.5 rounded-xl py-3 text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                                </svg>
+                                <span className="text-[9px] font-medium">GitHub</span>
+                            </a>
+                            <button onClick={() => { handleShare(); setMobilePanel(null); }} className={`flex flex-col items-center gap-1.5 rounded-xl py-3 transition-colors ${shareCopied ? 'text-[#6f8f63]' : 'text-white/55 hover:bg-white/6 hover:text-white'}`}>
+                                <Share2 size={18} strokeWidth={1.6} />
+                                <span className="text-[9px] font-medium">{shareCopied ? 'Copied!' : 'Share'}</span>
+                            </button>
+                            <button onClick={() => setMapCommand({ type: 'reset', t: Date.now() })} className="flex flex-col items-center gap-1.5 rounded-xl py-3 text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                                    <polygon points="10,2 12.5,10 10,8.5 7.5,10" fill="#d0542c" />
+                                    <polygon points="10,18 12.5,10 10,11.5 7.5,10" fill="rgba(255,255,255,0.35)" />
+                                    <circle cx="10" cy="10" r="1.5" fill="rgba(255,255,255,0.6)" />
+                                </svg>
+                                <span className="text-[9px] font-medium">Reset view</span>
+                            </button>
+                        </div>
+
+                        <p className="mb-2 mt-4 text-[9px] font-bold tracking-[0.14em] text-white/40 uppercase">Base map</p>
+                        <div className="grid grid-cols-3 gap-2">
+                            {[{ id: 'dark', label: 'Dark' }, { id: 'satellite', label: 'Satellite' }, { id: 'osm', label: 'Classic' }].map(opt => (
+                                <button key={opt.id} onClick={() => setBasemap(opt.id)} className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-[10px] font-medium transition-colors ${basemap === opt.id ? 'border-brand-gold/40 bg-brand-gold/8 text-[#eab08c]' : 'border-white/8 text-white/42 hover:bg-white/5 hover:text-white/70'}`}>
+                                    <span className={`h-2 w-2 shrink-0 rounded-full ${basemap === opt.id ? 'bg-brand-gold' : 'border border-white/20'}`} />
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {/* Mobile bottom nav */}
             <div className="fixed bottom-0 left-0 right-0 z-50 flex h-14 items-stretch border-t border-white/8 bg-[#121519]/96 backdrop-blur-sm md:hidden">
                 <button onClick={() => setMobilePanel(p => p === 'setup' ? null : 'setup')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobilePanel === 'setup' ? 'text-[#eab08c]' : 'text-white/28'}`}>
                     <Menu size={18} />
@@ -774,7 +843,12 @@ export default function Dashboard() {
                 <div className="my-3 w-px bg-white/8" />
                 <button onClick={() => setMobilePanel(p => p === 'findings' ? null : 'findings')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobilePanel === 'findings' ? 'text-[#eab08c]' : 'text-white/28'}`}>
                     <BarChart3 size={18} />
-                    <span className="text-[8px] font-medium">Findings</span>
+                    <span className="text-[8px] font-medium">Results</span>
+                </button>
+                <div className="my-3 w-px bg-white/8" />
+                <button onClick={() => setMobilePanel(p => p === 'more' ? null : 'more')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobilePanel === 'more' ? 'text-[#eab08c]' : 'text-white/28'}`}>
+                    <MoreHorizontal size={18} />
+                    <span className="text-[8px] font-medium">More</span>
                 </button>
             </div>
         </div>

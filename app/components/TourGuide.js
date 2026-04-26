@@ -124,7 +124,7 @@ export function TourGuide({ autoStart = false }) {
                 style={{ top: tooltip.top, left: tooltip.left, width: CARD_W }}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#111418]/82 shadow-2xl backdrop-blur-xl">
+                <div className="overflow-hidden rounded-2xl shadow-2xl backdrop-blur-xl" style={{ background: 'linear-gradient(180deg,rgba(4,5,7,0.92)0%,rgba(2,3,5,0.96)100%)', border: '1px solid rgba(243,239,228,0.08)' }}>
                     <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
                         <div className="flex items-center gap-2.5">
                             <div className="flex gap-1">

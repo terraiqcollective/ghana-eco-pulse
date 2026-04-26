@@ -22,7 +22,7 @@ export function AboutModal({ isOpen = false, onClose, onOpenTour, canOpenTour = 
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/62 backdrop-blur-[4px]" onClick={onClose} />
 
-            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#111418]/78 shadow-[0_32px_80px_rgba(0,0,0,0.58)] backdrop-blur-xl">
+            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl" style={{ background: 'linear-gradient(180deg,rgba(4,5,7,0.92)0%,rgba(2,3,5,0.96)100%)', border: '1px solid rgba(243,239,228,0.08)' }}>
                 <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 pb-4 pt-5">
                     <div className="flex items-center gap-3">
                         <BrandMark className="h-10 w-10 shrink-0" />

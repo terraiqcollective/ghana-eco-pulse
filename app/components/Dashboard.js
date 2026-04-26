@@ -22,6 +22,7 @@ import {
     MoreHorizontal,
     Plus,
     RotateCcw,
+    Send,
     Share2,
     TreePine,
     Pickaxe,
@@ -30,6 +31,7 @@ import {
 import { GlassPanel } from './GlassPanel';
 import { TourGuide } from './TourGuide';
 import { AboutModal } from './AboutModal';
+import { RequestDataModal } from './RequestDataModal';
 import { LossChart } from './LossChart';
 import { BrandMark } from './BrandMark';
 
@@ -137,6 +139,7 @@ export default function Dashboard() {
     const [isFindingsOpen, setIsFindingsOpen] = useState(true);
     const [tourTrigger, setTourTrigger] = useState(0);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
+    const [isRequestOpen, setIsRequestOpen] = useState(false);
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 768);
@@ -496,6 +499,11 @@ export default function Dashboard() {
                         GitHub
                     </a>
                 </GlassPanel>
+                <GlassPanel className="pointer-events-auto rounded-xl p-1">
+                    <button onClick={() => setIsRequestOpen(true)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                        <span className="flex items-center gap-2"><Send size={11} /> Request Data</span>
+                    </button>
+                </GlassPanel>
             </div>
 
             {mobilePanel !== null ? <div className="fixed inset-0 z-30 bg-black/55 md:hidden" onClick={() => setMobilePanel(null)} /> : null}
@@ -774,6 +782,7 @@ export default function Dashboard() {
             </div>
 
             <AboutModal isOpen={isAboutOpen} onClose={closeAboutModal} onOpenTour={openTourFromAbout} canOpenTour={!isMobile} />
+            <RequestDataModal isOpen={isRequestOpen} onClose={() => setIsRequestOpen(false)} />
             <TourGuide autoStart={tourTrigger} />
 
             {/* Mobile floating map controls — zoom + locate, bottom-right above nav */}
@@ -797,7 +806,7 @@ export default function Dashboard() {
                 <div className="fixed bottom-14 left-0 right-0 z-40 md:hidden" style={{ background: 'linear-gradient(180deg,rgba(4,5,7,0.97)0%,rgba(2,3,5,0.99)100%)', backdropFilter: 'blur(16px) saturate(120%)', WebkitBackdropFilter: 'blur(16px) saturate(120%)', borderTop: '1px solid rgba(243,239,228,0.08)' }}>
                     <div className="px-4 py-3">
                         <p className="mb-3 text-[9px] font-bold tracking-[0.14em] text-white/40 uppercase">Actions</p>
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-5 gap-2">
                             <button onClick={() => { setIsAboutOpen(true); setMobilePanel(null); }} className="flex flex-col items-center gap-1.5 rounded-xl py-3 text-white/55 transition-colors hover:bg-white/6 hover:text-white">
                                 <Info size={18} strokeWidth={1.6} />
                                 <span className="text-[9px] font-medium">About</span>
@@ -812,13 +821,17 @@ export default function Dashboard() {
                                 <Share2 size={18} strokeWidth={1.6} />
                                 <span className="text-[9px] font-medium">{shareCopied ? 'Copied!' : 'Share'}</span>
                             </button>
+                            <button onClick={() => { setIsRequestOpen(true); setMobilePanel(null); }} className="flex flex-col items-center gap-1.5 rounded-xl py-3 text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                                <Send size={18} strokeWidth={1.6} />
+                                <span className="text-[9px] font-medium">Request</span>
+                            </button>
                             <button onClick={() => setMapCommand({ type: 'reset', t: Date.now() })} className="flex flex-col items-center gap-1.5 rounded-xl py-3 text-white/55 transition-colors hover:bg-white/6 hover:text-white">
                                 <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
                                     <polygon points="10,2 12.5,10 10,8.5 7.5,10" fill="#d0542c" />
                                     <polygon points="10,18 12.5,10 10,11.5 7.5,10" fill="rgba(255,255,255,0.35)" />
                                     <circle cx="10" cy="10" r="1.5" fill="rgba(255,255,255,0.6)" />
                                 </svg>
-                                <span className="text-[9px] font-medium">Reset view</span>
+                                <span className="text-[9px] font-medium">Reset</span>
                             </button>
                         </div>
 

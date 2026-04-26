@@ -1,21 +1,35 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import {
-    Plus, Minus, Map as MapIcon, Menu,
-    ChevronLeft, ChevronRight, BarChart3,
-    AlertTriangle, X, TreePine, Pickaxe, RotateCcw,
-    Loader2, Database, ArrowUp, ArrowDown, Layers
+    AlertTriangle,
+    BarChart3,
+    ChevronDown,
+    ChevronUp,
+    Crosshair,
+    Database,
+    HelpCircle,
+    Info,
+    Layers,
+    Loader2,
+    MapPin,
+    Maximize2,
+    Menu,
+    Minimize2,
+    Minus,
+    Plus,
+    RotateCcw,
+    Share2,
+    TreePine,
+    Pickaxe,
 } from 'lucide-react';
 
-import { TopHeader } from './TopHeader';
 import { GlassPanel } from './GlassPanel';
-import { LegendPanel } from './LegendPanel';
 import { TourGuide } from './TourGuide';
 import { AboutModal } from './AboutModal';
-import { KPI } from './KPI';
 import { LossChart } from './LossChart';
+import { BrandMark } from './BrandMark';
 
 const ABOUT_KEY = 'ecopulse_about_seen';
 const ANALYSIS_SCOPES = {
@@ -23,105 +37,104 @@ const ANALYSIS_SCOPES = {
     district: 'District',
 };
 
-// ─── Data source metadata for each layer ────────────────────────────────────
 const LAYER_INFO = {
-    carbon: {
-        name: 'Carbon Stock',
-        source: 'GEDI Mosaics + Google Satellite Embeddings',
-        sensor: 'GEDI',
-        resolution: '25m',
-        cadence: 'Annual',
-        dot: 'bg-emerald-500',
-    },
-    mining: {
-        name: 'Mining Loss',
-        source: 'Planet NICFI + U-Net Model · Mining Activity Detection',
-        sensor: 'Planet NICFI',
-        resolution: '4.77m',
-        cadence: 'Annual',
-        dot: 'bg-red-500',
-    },
-    region: {
-        name: 'Region Boundary',
-        source: 'Ghana Statistical Service (GSS)',
-        sensor: 'Vector',
-        resolution: 'Vector',
-        cadence: 'Static',
-        dot: 'bg-white/50',
-    },
-    district: {
-        name: 'District Boundary',
-        source: 'Ghana Statistical Service (GSS)',
-        sensor: 'Vector',
-        resolution: 'Vector',
-        cadence: 'Static',
-        dot: 'bg-yellow-400',
-    },
+    carbon: { name: 'Carbon stock', source: 'GEDI mosaics and Google Satellite Embeddings', dot: 'bg-emerald-500' },
+    mining: { name: 'Mining loss', source: 'Planet NICFI and U-Net mining activity detection', dot: 'bg-red-500' },
+    region: { name: 'Region boundary', source: 'Ghana Statistical Service (GSS)', dot: 'bg-white/50' },
+    district: { name: 'District boundary', source: 'Ghana Statistical Service (GSS)', dot: 'bg-yellow-400' },
 };
 
-// ─── Contextual insights derived from current metrics ───────────────────────
 function computeTakeaway(metrics, selectedYear, selectedRegion, selectedDistrict) {
     const { carbonStock, carbonLoss, prevCarbonLoss } = metrics;
 
     if (prevCarbonLoss > 0 && carbonLoss > 0) {
         const change = ((carbonLoss - prevCarbonLoss) / prevCarbonLoss) * 100;
         if (Math.abs(change) > 3) {
-            return {
-                type: change > 0 ? 'warning' : 'good',
-                text: change > 0
-                    ? `Mining-related loss increased by ${change.toFixed(0)}% relative to ${(selectedYear || 2024) - 1}.`
-                    : `Mining-related loss decreased by ${Math.abs(change).toFixed(0)}% relative to ${(selectedYear || 2024) - 1}.`,
-            };
+            return change > 0
+                ? `Mining-related loss increased by ${change.toFixed(0)}% relative to ${(selectedYear || 2024) - 1}.`
+                : `Mining-related loss decreased by ${Math.abs(change).toFixed(0)}% relative to ${(selectedYear || 2024) - 1}.`;
         }
-
-        return {
-            type: 'neutral',
-            text: `Mining-related loss was broadly unchanged from ${(selectedYear || 2024) - 1}.`,
-        };
+        return `Mining-related loss was broadly unchanged from ${(selectedYear || 2024) - 1}.`;
     }
 
     if (carbonStock > 0 && carbonLoss > 0) {
         const ratio = (carbonLoss / carbonStock) * 100;
-        return {
-            type: ratio > 1.5 ? 'warning' : 'good',
-            text: `Estimated loss equals ${ratio.toFixed(ratio > 1.5 ? 1 : 2)}% of total forest carbon stock.`,
-        };
+        return `Estimated loss equals ${ratio.toFixed(ratio > 1.5 ? 1 : 2)}% of total forest carbon stock.`;
     }
 
-    if (!selectedRegion) {
-        return { type: 'info', text: 'Select a region to view district-level results.' };
-    }
-
-    if (!selectedDistrict) {
-        return { type: 'info', text: `Regional totals currently include all districts in ${selectedRegion}.` };
-    }
-
-    return { type: 'neutral', text: `Showing district-level results for ${selectedDistrict} in ${selectedYear}.` };
+    if (!selectedRegion) return 'Choose a region to begin.';
+    if (!selectedDistrict) return `Showing totals for all districts in ${selectedRegion}.`;
+    return `Showing district-level results for ${selectedDistrict} in ${selectedYear}.`;
 }
 
 const MapComponent = dynamic(() => import('./Map'), {
     ssr: false,
     loading: () => (
-        <div className="h-full w-full bg-brand-deep flex items-center justify-center text-brand-gold">
-            <div className="flex items-center gap-3 animate-pulse">
+        <div className="flex h-full w-full items-center justify-center bg-brand-deep text-brand-gold">
+            <div className="flex items-center gap-3">
                 <Loader2 size={18} className="animate-spin" />
-                <span className="text-[11px] font-black uppercase tracking-widest">Loading Layers...</span>
+                <span className="text-[11px] font-medium tracking-[0.04em]">Loading layers</span>
             </div>
         </div>
-    )
+    ),
 });
 
-export default function Dashboard() {
-    // Layout
-    const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
-    const [isRightCollapsed, setIsRightCollapsed] = useState(true);
-    const [isLegendOpen, setIsLegendOpen] = useState(false);
-    const [tourTrigger, setTourTrigger] = useState(0);
-    const [isAboutOpen, setIsAboutOpen] = useState(false);
+function compactValue(val) {
+    const num = parseFloat(val) || 0;
+    if (num >= 1_000_000) return { value: (num / 1_000_000).toFixed(1), suffix: 'M' };
+    if (num >= 1_000) return { value: (num / 1_000).toFixed(1), suffix: 'k' };
+    return { value: num.toFixed(0), suffix: '' };
+}
 
-    // Mobile
+function formatPercent(base, current) {
+    if (!base) return null;
+    return ((current - base) / base) * 100;
+}
+
+function FloatingToggle({ label, active, onToggle, icon: Icon, iconColor }) {
+    return (
+        <button onClick={onToggle} className="flex w-full items-center justify-between gap-3 py-2 text-left">
+            <div className="flex min-w-0 items-center gap-2.5">
+                <Icon size={15} strokeWidth={1.6} style={{ color: iconColor }} className={`shrink-0 transition-opacity ${active ? 'opacity-100' : 'opacity-35'}`} />
+                <span className={`text-[10px] font-medium transition-colors ${active ? 'text-white/75' : 'text-white/35'}`}>{label}</span>
+            </div>
+            <div className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${active ? 'bg-brand-gold/85' : 'bg-white/12'}`}>
+                <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${active ? 'right-0.5' : 'left-0.5 bg-white/70'}`} />
+            </div>
+        </button>
+    );
+}
+
+function MetricStrip({ label, value, suffix, delta, icon: Icon, accentClass }) {
+    return (
+        <div className="grid grid-cols-[minmax(0,1fr),auto] gap-3 py-3">
+            <div className="min-w-0">
+                <div className="flex items-center gap-2 text-white/42">
+                    <Icon size={12} className={accentClass} />
+                    <span className="text-[10px] font-medium">{label}</span>
+                </div>
+                <div className="mt-1.5 flex items-end gap-1.5">
+                    <span className="font-display text-[1.8rem] leading-none text-[#f3efe4]">{value}</span>
+                    {suffix ? <span className="font-display pb-0.5 text-[1rem] leading-none text-white/54">{suffix}</span> : null}
+                </div>
+                <span className="mt-1 block text-[9px] text-white/28">tonnes C</span>
+            </div>
+            <div className="flex min-w-[64px] items-end justify-end">
+                <span className={`font-mono text-[9px] ${delta === null ? 'text-white/26' : delta >= 0 ? 'text-[#9a5d3f]' : 'text-[#6f8f63]'}`}>
+                    {delta === null ? '-' : `${delta >= 0 ? '+' : '-'}${Math.abs(delta).toFixed(1)}%`}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+export default function Dashboard() {
     const [isMobile, setIsMobile] = useState(false);
     const [mobilePanel, setMobilePanel] = useState(null);
+    const [isSetupOpen, setIsSetupOpen] = useState(true);
+    const [isFindingsOpen, setIsFindingsOpen] = useState(true);
+    const [tourTrigger, setTourTrigger] = useState(0);
+    const [isAboutOpen, setIsAboutOpen] = useState(false);
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 768);
@@ -132,25 +145,19 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-
         const seen = window.localStorage.getItem(ABOUT_KEY);
         if (seen) return;
-
         const timeoutId = window.setTimeout(() => setIsAboutOpen(true), 600);
         return () => window.clearTimeout(timeoutId);
     }, []);
 
-    // Map controls
     const [zoomCommand, setZoomCommand] = useState(null);
     const [mapCommand, setMapCommand] = useState(null);
     const [basemap, setBasemap] = useState('dark');
     const [showBasemaps, setShowBasemaps] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [shareCopied, setShareCopied] = useState(false);
 
-    // Boundary GeoJSON (loaded once on mount)
-
-    // Pending district — set when a map click triggers region+district together
-
-    // Filters
     const [years, setYears] = useState([]);
     const [regions, setRegions] = useState([]);
     const [districts, setDistricts] = useState([]);
@@ -161,18 +168,8 @@ export default function Dashboard() {
     const [activeYear, setActiveYear] = useState(null);
     const [activeRegion, setActiveRegion] = useState('');
     const [activeDistrict, setActiveDistrict] = useState('');
-    const [activeScope, setActiveScope] = useState('region');
 
-    // Data
-    const [metrics, setMetrics] = useState({ carbonStock: 0, carbonLoss: 0, trend: [] });
-
-    // Compare mode
-    const [compareMode, setCompareMode] = useState(false);
-    const [compareYear, setCompareYear] = useState(null);
-    const [compareMetrics, setCompareMetrics] = useState(null);
-    const [loadingCompare, setLoadingCompare] = useState(false);
-
-    // Loading & errors
+    const [metrics, setMetrics] = useState({ carbonStock: 0, carbonLoss: 0, prevCarbonStock: 0, prevCarbonLoss: 0, trend: [] });
     const [loading, setLoading] = useState(true);
     const [loadingDistricts, setLoadingDistricts] = useState(false);
     const [loadingMetrics, setLoadingMetrics] = useState(false);
@@ -180,27 +177,10 @@ export default function Dashboard() {
     const [metricsError, setMetricsError] = useState(null);
     const [districtsError, setDistrictsError] = useState(null);
 
-    // Layers
     const [selectedLayers, setSelectedLayers] = useState(['carbon', 'mining']);
 
     const toggleLayer = (id) => {
-        setSelectedLayers(prev =>
-            prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
-        );
-    };
-
-    const formatMetric = (val) => {
-        const num = parseFloat(val) || 0;
-        if (num >= 1000000) return { value: (num / 1000000).toFixed(1), suffix: 'M', unit: 'tonnes C' };
-        if (num >= 1000) return { value: (num / 1000).toFixed(1), suffix: 'k', unit: 'tonnes C' };
-        return { value: num.toFixed(0), suffix: '', unit: 'tonnes C' };
-    };
-
-    const fmtNum = (val) => {
-        const num = parseFloat(val) || 0;
-        if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-        if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
-        return num.toFixed(0);
+        setSelectedLayers(prev => prev.includes(id) ? prev.filter(layer => layer !== id) : [...prev, id]);
     };
 
     const resetDashboard = useCallback(() => {
@@ -211,28 +191,20 @@ export default function Dashboard() {
         setDistricts([]);
         setAnalysisScope('region');
         setSelectedLayers(['carbon', 'mining']);
-        setCompareMode(false);
-        setCompareYear(null);
-        setCompareMetrics(null);
-        setMetrics({ carbonStock: 0, carbonLoss: 0, trend: [] });
+        setMetrics({ carbonStock: 0, carbonLoss: 0, prevCarbonStock: 0, prevCarbonLoss: 0, trend: [] });
         setMetadataError(null);
         setMetricsError(null);
         setDistrictsError(null);
-        setIsRightCollapsed(true);
-        setIsLegendOpen(false);
         if (years.length > 0) {
             const latestYear = parseInt(years[years.length - 1]);
             setDraftYear(latestYear);
             setActiveYear(null);
-            setCompareYear(latestYear - 1);
         }
         setMapCommand({ type: 'reset', t: Date.now() });
     }, [years]);
 
     const closeAboutModal = useCallback(() => {
-        if (typeof window !== 'undefined') {
-            window.localStorage.setItem(ABOUT_KEY, '1');
-        }
+        if (typeof window !== 'undefined') window.localStorage.setItem(ABOUT_KEY, '1');
         setIsAboutOpen(false);
     }, []);
 
@@ -241,19 +213,55 @@ export default function Dashboard() {
         setTourTrigger(prev => prev + 1);
     }, [closeAboutModal]);
 
+    const handleLocate = useCallback(() => {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => setMapCommand({ type: 'flyTo', lat: pos.coords.latitude, lng: pos.coords.longitude, zoom: 13, t: Date.now() }),
+            () => {}
+        );
+    }, []);
+
+    const handleShare = useCallback(() => {
+        const params = new URLSearchParams();
+        if (activeYear)     params.set('year',     activeYear);
+        if (activeRegion)   params.set('region',   activeRegion);
+        if (activeDistrict) params.set('district', activeDistrict);
+        if (activeDistrict) params.set('scope',    'district');
+        const url = `${window.location.origin}${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+        const confirm = () => { setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); };
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(confirm).catch(() => {});
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = url;
+            ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            confirm();
+        }
+    }, [activeYear, activeRegion, activeDistrict]);
+
+    const handleFullscreen = useCallback(() => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    }, []);
+
+    useEffect(() => {
+        const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', onFsChange);
+        return () => document.removeEventListener('fullscreenchange', onFsChange);
+    }, []);
+
     const hasActiveAnalysis = !!activeRegion;
     const hasDraftLocation = analysisScope === 'district' ? !!draftRegion && !!draftDistrict : !!draftRegion;
     const canRunAnalysis = !!draftYear && hasDraftLocation;
-    const hasPendingChanges = (
-        draftYear !== activeYear
-        || draftRegion !== activeRegion
-        || draftDistrict !== activeDistrict
-        || analysisScope !== activeScope
-    );
-
-    const sliderFill = years.length > 1 && draftYear
-        ? ((draftYear - years[0]) / (years[years.length - 1] - years[0])) * 100
-        : 0;
+    const hasPendingChanges = draftYear !== activeYear || draftRegion !== activeRegion || draftDistrict !== activeDistrict;
+    const sliderFill = years.length > 1 && draftYear ? ((draftYear - years[0]) / (years[years.length - 1] - years[0])) * 100 : 0;
 
     const takeaway = useMemo(
         () => computeTakeaway(metrics, activeYear, activeRegion, activeDistrict),
@@ -271,56 +279,55 @@ export default function Dashboard() {
 
     const runAnalysis = useCallback(() => {
         if (!canRunAnalysis) return;
-
-        setActiveScope(analysisScope);
         setActiveYear(draftYear);
         setActiveRegion(draftRegion);
         setActiveDistrict(analysisScope === 'district' ? draftDistrict : '');
         setMetricsError(null);
-        setCompareMetrics(null);
-        setIsRightCollapsed(false);
+        if (isMobile) setMobilePanel(null);
+    }, [canRunAnalysis, draftYear, draftRegion, draftDistrict, analysisScope, isMobile]);
 
-        if (isMobile) {
-            setMobilePanel('right');
-        }
-    }, [canRunAnalysis, analysisScope, draftYear, draftRegion, draftDistrict, isMobile]);
-
-    // 1. Fetch metadata
     useEffect(() => {
         const abortController = new AbortController();
-
         const fetchMetadata = async () => {
             try {
                 setMetadataError(null);
-                const response = await fetch('/api/gee/metadata', {
-                    signal: abortController.signal,
-                });
+                const response = await fetch('/api/gee/metadata', { signal: abortController.signal });
                 if (!response.ok) throw new Error('Failed to connect to Earth Engine. Check server credentials.');
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 setYears(data.years || []);
                 setRegions(data.regions || []);
                 if (data.years?.length > 0) {
-                    const latest = parseInt(data.years[data.years.length - 1]);
-                    setDraftYear(latest);
-                    setCompareYear(latest - 1);
+                    setDraftYear(parseInt(data.years[data.years.length - 1]));
+                }
+
+                const sp = new URLSearchParams(window.location.search);
+                const urlYear     = parseInt(sp.get('year'));
+                const urlRegion   = sp.get('region')   || '';
+                const urlDistrict = sp.get('district') || '';
+                const urlScope    = sp.get('scope')    || 'region';
+                if (urlYear && urlRegion
+                    && (data.years || []).includes(String(urlYear))
+                    && (data.regions || []).includes(urlRegion)) {
+                    setDraftYear(urlYear);
+                    setDraftRegion(urlRegion);
+                    setDraftDistrict(urlDistrict);
+                    setAnalysisScope(urlScope);
+                    setActiveYear(urlYear);
+                    setActiveRegion(urlRegion);
+                    setActiveDistrict(urlDistrict);
                 }
             } catch (err) {
                 if (err.name === 'AbortError') return;
-                console.error('Metadata fetch error:', err);
                 setMetadataError(err.message);
             } finally {
-                if (!abortController.signal.aborted) {
-                    setLoading(false);
-                }
+                if (!abortController.signal.aborted) setLoading(false);
             }
         };
         fetchMetadata();
-
         return () => abortController.abort();
     }, []);
 
-    // 2. Fetch districts
     useEffect(() => {
         if (!draftRegion) {
             setDistricts([]);
@@ -328,9 +335,7 @@ export default function Dashboard() {
             setDistrictsError(null);
             return;
         }
-
         const abortController = new AbortController();
-
         const fetchDistricts = async () => {
             setLoadingDistricts(true);
             setDistrictsError(null);
@@ -345,35 +350,26 @@ export default function Dashboard() {
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 setDistricts(data.districts || []);
-                if (analysisScope !== 'district') {
-                    setDraftDistrict('');
-                }
+                if (analysisScope !== 'district') setDraftDistrict('');
             } catch (err) {
                 if (err.name === 'AbortError') return;
-                console.error('Districts fetch error:', err);
                 setDistrictsError(err.message);
                 setDistricts([]);
             } finally {
-                if (!abortController.signal.aborted) {
-                    setLoadingDistricts(false);
-                }
+                if (!abortController.signal.aborted) setLoadingDistricts(false);
             }
         };
         fetchDistricts();
-
         return () => abortController.abort();
     }, [draftRegion, analysisScope]);
 
-    // 3. Fetch metrics
     useEffect(() => {
         if (!activeYear || !activeRegion) {
-            setMetrics({ carbonStock: 0, carbonLoss: 0, trend: [] });
+            setMetrics({ carbonStock: 0, carbonLoss: 0, prevCarbonStock: 0, prevCarbonLoss: 0, trend: [] });
             setLoadingMetrics(false);
             return;
         }
-
         const abortController = new AbortController();
-
         const fetchMetrics = async () => {
             setLoadingMetrics(true);
             setMetricsError(null);
@@ -390,184 +386,54 @@ export default function Dashboard() {
                 setMetrics(data);
             } catch (err) {
                 if (err.name === 'AbortError') return;
-                console.error('Metrics fetch error:', err);
                 setMetricsError(err.message);
             } finally {
-                if (!abortController.signal.aborted) {
-                    setLoadingMetrics(false);
-                }
+                if (!abortController.signal.aborted) setLoadingMetrics(false);
             }
         };
         fetchMetrics();
-
         return () => abortController.abort();
     }, [activeYear, activeRegion, activeDistrict, years]);
 
-    // 4. Fetch compare metrics
-    useEffect(() => {
-        if (!compareMode || !compareYear || !activeYear || !activeRegion || compareYear === activeYear) {
-            setCompareMetrics(null);
-            return;
-        }
-
-        const abortController = new AbortController();
-
-        const fetchCompare = async () => {
-            setLoadingCompare(true);
-            try {
-                const response = await fetch('/api/gee/metrics', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year: compareYear, region: activeRegion, district: activeDistrict, years }),
-                    signal: abortController.signal,
-                });
-                if (!response.ok) throw new Error();
-                const data = await response.json();
-                if (data.error) throw new Error();
-                setCompareMetrics(data);
-            } catch (err) {
-                if (err.name === 'AbortError') return;
-                setCompareMetrics(null);
-            } finally {
-                if (!abortController.signal.aborted) {
-                    setLoadingCompare(false);
-                }
-            }
-        };
-        fetchCompare();
-
-        return () => abortController.abort();
-    }, [compareMode, compareYear, activeYear, activeRegion, activeDistrict, years]);
-
-    // Auto-enable region boundary layer
     useEffect(() => {
         if (activeRegion) {
-            setSelectedLayers(prev => (
-                prev.includes('region') ? prev : [...prev, 'region']
-            ));
+            setSelectedLayers(prev => prev.includes('region') ? prev : [...prev, 'region']);
         }
     }, [activeRegion]);
 
-    // Sync district layer
     useEffect(() => {
         setSelectedLayers(prev => {
-            if (activeDistrict) {
-                return prev.includes('district') ? prev : [...prev, 'district'];
-            }
-            return prev.includes('district')
-                ? prev.filter(l => l !== 'district')
-                : prev;
+            if (activeDistrict) return prev.includes('district') ? prev : [...prev, 'district'];
+            return prev.includes('district') ? prev.filter(layer => layer !== 'district') : prev;
         });
     }, [activeDistrict]);
 
-    // ─── Initial loading screen ──────────────────────────────────────────────
     if (loading) {
         return (
             <div className="flex h-screen w-screen items-center justify-center bg-brand-deep">
                 <div className="flex flex-col items-center gap-8">
-                    {/* Pulse rings */}
-                    <div className="relative w-16 h-16 flex items-center justify-center">
+                    <div className="relative flex h-16 w-16 items-center justify-center">
                         <div className="canopy-ring" />
                         <div className="canopy-ring" />
                         <div className="canopy-ring" />
-                        {/* Centre icon */}
-                        <div className="relative z-10 w-10 h-10 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center">
+                        <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border border-brand-gold/30 bg-brand-gold/10">
                             <TreePine size={18} className="text-brand-gold" />
                         </div>
                     </div>
-                    {/* Text */}
-                    <div className="text-center">
-                        <p className="text-white text-sm font-semibold tracking-wide">Loading dashboard data...</p>
-                    </div>
+                    <p className="text-sm font-medium tracking-[0.02em] text-white/78">Loading dashboard data</p>
                 </div>
             </div>
         );
     }
 
-    // ─── Derived values ──────────────────────────────────────────────────────
-    const stockFmt = formatMetric(metrics.carbonStock);
-    const lossFmt = formatMetric(metrics.carbonLoss);
-
-    const stockTrend = metrics.prevCarbonStock
-        ? ((metrics.carbonStock - metrics.prevCarbonStock) / metrics.prevCarbonStock) * 100
-        : 0;
-    const lossTrend = metrics.prevCarbonLoss
-        ? ((metrics.carbonLoss - metrics.prevCarbonLoss) / metrics.prevCarbonLoss) * 100
-        : 0;
-
-    const stockDelta = compareMetrics?.carbonStock
-        ? ((metrics.carbonStock - compareMetrics.carbonStock) / compareMetrics.carbonStock) * 100
-        : null;
-    const lossDelta = compareMetrics?.carbonLoss
-        ? ((metrics.carbonLoss - compareMetrics.carbonLoss) / compareMetrics.carbonLoss) * 100
-        : null;
-
-    const systemStatus = metricsError
-        ? { dotClass: 'bg-red-500' }
-        : !hasActiveAnalysis
-            ? { dotClass: 'bg-white/20' }
-            : loadingMetrics
-                ? { dotClass: 'bg-brand-gold animate-pulse' }
-                : { dotClass: 'bg-emerald-500 animate-pulse' };
-
-    // ─── Panel class builders ────────────────────────────────────────────────
-    const leftPanelClass = [
-        'fixed md:absolute',
-        'inset-x-0 md:inset-x-auto md:left-0',
-        'bottom-14 md:bottom-0',
-        'md:top-16 md:w-80',
-        'z-40 md:z-30',
-        'max-h-[78vh] md:max-h-none',
-        'bg-brand-deep/95 md:bg-brand-deep/90 backdrop-blur-lg',
-        'border-t border-brand-gold/20 md:border-r md:border-t-0',
-        'rounded-t-2xl md:rounded-none',
-        'transition-all duration-500 flex flex-col',
-        mobilePanel === 'left'
-            ? 'translate-y-0 shadow-[0_-20px_50px_rgba(0,0,0,0.6)]'
-            : 'translate-y-full md:translate-y-0',
-        isLeftCollapsed
-            ? 'md:-translate-x-full md:shadow-none'
-            : 'md:translate-x-0 md:shadow-[20px_0_50px_rgba(0,0,0,0.6)]',
-    ].join(' ');
-
-    const rightPanelClass = [
-        'fixed md:absolute',
-        'inset-x-0 md:inset-x-auto md:right-0',
-        'bottom-14 md:bottom-0',
-        'md:top-16 md:w-80',
-        'z-40 md:z-30',
-        'max-h-[78vh] md:max-h-none',
-        'bg-brand-deep/95 md:bg-brand-deep/90 backdrop-blur-lg',
-        'border-t border-brand-gold/20 md:border-l md:border-t-0',
-        'rounded-t-2xl md:rounded-none',
-        'transition-all duration-500 flex flex-col',
-        mobilePanel === 'right'
-            ? 'translate-y-0 shadow-[0_-20px_50px_rgba(0,0,0,0.6)]'
-            : 'translate-y-full md:translate-y-0',
-        isRightCollapsed
-            ? 'md:translate-x-full md:shadow-none'
-            : 'md:translate-x-0 md:shadow-[-20px_0_50px_rgba(0,0,0,0.6)]',
-    ].join(' ');
-
-    // Insight chip styles
-    const takeawayStyle = {
-        warning: 'border-red-500/20 bg-red-500/5',
-        good:    'border-emerald-500/20 bg-emerald-500/5',
-        neutral: 'border-white/8 bg-white/3',
-        info:    'border-brand-gold/15 bg-brand-gold/4',
-    };
-    const takeawayDot = {
-        warning: 'bg-red-500',
-        good:    'bg-emerald-500',
-        neutral: 'bg-white/30',
-        info:    'bg-brand-gold',
-    };
+    const stockFmt = compactValue(metrics.carbonStock);
+    const lossFmt = compactValue(metrics.carbonLoss);
+    const stockDelta = formatPercent(metrics.prevCarbonStock, metrics.carbonStock);
+    const lossDelta = formatPercent(metrics.prevCarbonLoss, metrics.carbonLoss);
 
     return (
-        <div className="relative h-screen w-screen bg-brand-deep overflow-hidden text-white selection:bg-brand-gold/30">
-
-            {/* Full-screen map */}
-            <div id="tour-map" className="absolute inset-0 z-0 bg-brand-deep">
+        <div className="relative h-screen w-screen overflow-hidden bg-brand-deep text-white selection:bg-brand-gold/30">
+            <div className="absolute inset-0 z-0">
                 <MapComponent
                     year={activeYear}
                     region={activeRegion}
@@ -579,175 +445,131 @@ export default function Dashboard() {
                 />
             </div>
 
-            {/* Header */}
-            <div className="absolute top-0 left-0 right-0 z-40" style={{ height: '64px' }}>
-                <TopHeader
-                    selectedYear={activeYear}
-                    selectedRegion={activeRegion}
-                    selectedDistrict={activeDistrict}
-                    onAbout={() => setIsAboutOpen(true)}
-                    onTour={() => setTourTrigger(prev => prev + 1)}
-                />
+            <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_center,transparent_42%,rgba(14,11,8,0.58)_100%)]" />
+
+            <div className="absolute left-4 top-4 z-40 flex items-start gap-3 md:left-6 md:top-6">
+                <GlassPanel className="pointer-events-auto w-[18rem] rounded-2xl border-white/10">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                        <BrandMark className="h-9 w-9 shrink-0" />
+                        <div className="min-w-0">
+                            <h1 className="font-display text-[1.3rem] leading-none text-[#f3efe4]">EcoPulse</h1>
+                            <p className="mt-1 text-[9px] tracking-[0.12em] text-white/34 uppercase">Forest Carbon Monitoring</p>
+                        </div>
+                    </div>
+                </GlassPanel>
             </div>
 
-            {/* Mobile backdrop */}
-            {mobilePanel !== null && (
-                <div
-                    className="fixed inset-0 z-30 bg-black/50 md:hidden"
-                    onClick={() => setMobilePanel(null)}
-                />
-            )}
-
-            {/* ══════════════════════════════ LEFT PANEL ══════════════════════════════ */}
-            <div id="tour-left-panel" className={leftPanelClass}>
-                {/* Mobile drag handle */}
-                <div className="flex justify-center pt-2.5 pb-0.5 md:hidden shrink-0">
-                    <div className="w-10 h-1 rounded-full bg-white/20" />
-                </div>
-
-                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-5">
-
-                    {/* Header */}
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h2 className="text-white text-sm font-bold leading-none">Filters</h2>
-                            <p className="text-[9px] text-white/25 mt-1 font-medium">Ghana forest carbon and mining data</p>
+            <div className="absolute right-4 top-4 z-40 hidden items-center gap-2 md:flex">
+                {activeYear ? (
+                    <GlassPanel className="pointer-events-auto rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-2 text-[10px] text-white/62">
+                            <MapPin size={11} />
+                            <span className="font-mono">{activeDistrict || activeRegion}</span>
                         </div>
-                        <button
-                            onClick={() => isMobile ? setMobilePanel(null) : setIsLeftCollapsed(true)}
-                            className="p-1.5 hover:bg-brand-gold/10 text-brand-gold/50 hover:text-brand-gold border border-brand-gold/20 rounded transition-colors cursor-pointer shrink-0"
-                        >
-                            <ChevronLeft size={16} />
-                        </button>
+                    </GlassPanel>
+                ) : null}
+                {activeYear ? (
+                    <GlassPanel className="pointer-events-auto rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-2 text-[10px] text-white/62">
+                            <Database size={11} />
+                            <span className="font-mono">{activeYear}</span>
+                        </div>
+                    </GlassPanel>
+                ) : null}
+                <GlassPanel className="pointer-events-auto rounded-xl p-1">
+                    <button onClick={() => setTourTrigger(prev => prev + 1)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                        <span className="flex items-center gap-2"><HelpCircle size={11} /> Help</span>
+                    </button>
+                </GlassPanel>
+                <GlassPanel className="pointer-events-auto rounded-xl p-1">
+                    <button onClick={() => setIsAboutOpen(true)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                        <span className="flex items-center gap-2"><Info size={11} /> About</span>
+                    </button>
+                </GlassPanel>
+            </div>
+
+            {mobilePanel !== null ? <div className="fixed inset-0 z-30 bg-black/55 md:hidden" onClick={() => setMobilePanel(null)} /> : null}
+
+            <div id="tour-setup-panel" className={`absolute left-4 top-24 z-40 w-[20rem] max-w-[calc(100vw-2rem)] transition-transform duration-300 ${isMobile ? (mobilePanel === 'setup' ? 'translate-y-0' : '-translate-y-[120%]') : ''}`}>
+                <GlassPanel className="pointer-events-auto rounded-2xl border-white/10">
+                    <div className="border-b border-white/8 px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-[10px] font-bold tracking-[0.14em] text-white/80 uppercase">Setup</p>
+                                <p className="mt-1 text-[10px] leading-snug text-white/50">Choose area and year, then run the analysis.</p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setIsSetupOpen(prev => !prev)}
+                                    className="rounded-lg p-2 text-white/34 transition-colors hover:bg-white/6 hover:text-white"
+                                    title={isSetupOpen ? 'Collapse setup' : 'Expand setup'}
+                                >
+                                    {isSetupOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                </button>
+                                <button onClick={resetDashboard} className="rounded-lg p-2 text-white/34 transition-colors hover:bg-white/6 hover:text-white" title="Reset">
+                                    <RotateCcw size={12} />
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Connection error */}
-                    {metadataError && (
-                        <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                            <AlertTriangle size={13} className="text-red-400 shrink-0 mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-bold text-red-400 mb-0.5">Data connection error</p>
-                                <p className="text-[10px] text-red-300/70 leading-snug">{metadataError}</p>
+                    {isSetupOpen && (
+                    <div className="space-y-4 px-4 py-4">
+                        {metadataError ? (
+                            <div className="border border-red-500/30 bg-red-500/10 px-3 py-2 text-[9px] text-red-200/76">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle size={11} className="mt-0.5 shrink-0 text-red-300" />
+                                    <span>{metadataError}</span>
+                                </div>
                             </div>
-                            <button onClick={() => setMetadataError(null)} className="shrink-0 text-red-400/50 hover:text-red-400 transition-colors">
-                                <X size={12} />
-                            </button>
-                        </div>
-                    )}
+                        ) : null}
 
-                    {/* ── Location ───────────────────────────────── */}
-                    <div className="flex flex-col gap-3">
-                        <div className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
-                            <p className="text-[10px] font-medium text-white/40">
-                                Choose configuration for analysis, then select your area and year.
-                            </p>
-                        </div>
-
-                        <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Analysis Setup</span>
-
-                        <div className="grid grid-cols-2 gap-2">
-                            {Object.entries(ANALYSIS_SCOPES).map(([scopeId, label]) => (
-                                <button
-                                    key={scopeId}
-                                    onClick={() => {
-                                        setAnalysisScope(scopeId);
-                                        if (scopeId === 'region') setDraftDistrict('');
-                                    }}
-                                    className={`rounded-lg border px-3 py-2 text-[10px] font-bold transition-all ${
-                                        analysisScope === scopeId
-                                            ? 'border-brand-gold/40 bg-brand-gold/10 text-brand-gold'
-                                            : 'border-white/8 bg-transparent text-white/35 hover:border-white/15 hover:text-white/60'
-                                    }`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+                        <div className="space-y-2">
+                            <span className="text-[9px] tracking-[0.12em] text-white/30 uppercase">Scope</span>
+                            <div className="grid grid-cols-2 gap-2">
+                                {Object.entries(ANALYSIS_SCOPES).map(([scopeId, label]) => (
+                                    <button
+                                        key={scopeId}
+                                        onClick={() => {
+                                            setAnalysisScope(scopeId);
+                                            if (scopeId === 'region') setDraftDistrict('');
+                                        }}
+                                        className={`border px-3 py-2 text-[10px] font-medium transition-colors ${analysisScope === scopeId ? 'border-brand-gold/55 bg-brand-gold/10 text-[#dfbd84]' : 'border-white/10 text-white/46 hover:border-white/20 hover:text-white/78'}`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[10px] font-medium text-white/45 pl-0.5">Region</label>
-                            <select
-                                value={draftRegion}
-                                onChange={(e) => {
-                                    setDraftRegion(e.target.value);
-                                    setDraftDistrict('');
-                                }}
-                                className="w-full bg-brand-deep/40 border border-brand-gold/20 rounded px-3 py-2 text-xs font-bold text-white outline-none focus:border-brand-gold/60 appearance-none cursor-pointer h-10 transition-colors"
-                            >
-                                <option value="" className="bg-brand-deep">Select region</option>
-                                {regions.map(r => <option key={r} value={r} className="bg-brand-deep">{r}</option>)}
-                            </select>
-                            {hasActiveAnalysis && (
-                                <button
-                                    onClick={() => toggleLayer('region')}
-                                    className="flex items-center justify-between px-3 py-2 rounded border border-white/8 hover:border-white/15 bg-white/3 hover:bg-white/5 transition-all cursor-pointer"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3.5 h-3.5 rounded-sm border-2 border-white/40 shrink-0" />
-                                        <span className="text-[9px] font-medium text-white/35">Show boundary</span>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="mb-1.5 block text-[9px] tracking-[0.12em] text-white/30 uppercase">Region</label>
+                                <select value={draftRegion} onChange={(e) => { setDraftRegion(e.target.value); setDraftDistrict(''); }} className="h-11 w-full appearance-none border border-white/10 bg-[#0f1114] px-3 text-[11px] font-medium text-white outline-none transition-colors focus:border-brand-gold/60">
+                                    <option value="" className="bg-brand-deep">Select region</option>
+                                    {regions.map(region => <option key={region} value={region} className="bg-brand-deep">{region}</option>)}
+                                </select>
+                            </div>
+                            {analysisScope === 'district' ? (
+                                <div>
+                                    <div className="mb-1.5 flex items-center justify-between">
+                                        <label className="block text-[9px] tracking-[0.12em] text-white/30 uppercase">District</label>
+                                        {loadingDistricts ? <Loader2 size={10} className="animate-spin text-brand-gold/50" /> : null}
                                     </div>
-                                    <div className={`relative w-8 h-4 rounded-full transition-all duration-200 ${selectedLayers.includes('region') ? 'bg-white/25' : 'bg-white/8'}`}>
-                                        <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all duration-200 ${selectedLayers.includes('region') ? 'right-0.5 bg-white' : 'left-0.5 bg-white/25'}`} />
-                                    </div>
-                                </button>
-                            )}
+                                    <select value={draftDistrict} onChange={(e) => setDraftDistrict(e.target.value)} disabled={loadingDistricts || !draftRegion} className="h-11 w-full appearance-none border border-white/10 bg-[#0f1114] px-3 text-[11px] font-medium text-white outline-none transition-colors focus:border-brand-gold/60 disabled:cursor-not-allowed disabled:opacity-40">
+                                        <option value="" className="bg-brand-deep">{!draftRegion ? 'Select a region first' : 'Select district'}</option>
+                                        {districts.map(district => <option key={district} value={district} className="bg-brand-deep">{district}</option>)}
+                                    </select>
+                                    {districtsError ? <p className="mt-1 text-[9px] text-red-300/70">{districtsError}</p> : null}
+                                </div>
+                            ) : null}
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
+                        <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <label className="text-[10px] font-medium text-white/45 pl-0.5">District</label>
-                                {loadingDistricts && <Loader2 size={10} className="animate-spin text-brand-gold/50" />}
+                                <span className="text-[9px] tracking-[0.12em] text-white/30 uppercase">Year</span>
+                                <span className="font-mono text-[12px] text-brand-gold">{draftYear}</span>
                             </div>
-                            <select
-                                value={draftDistrict}
-                                onChange={(e) => setDraftDistrict(e.target.value)}
-                                disabled={analysisScope !== 'district' || loadingDistricts || !draftRegion}
-                                className="w-full bg-brand-deep/40 border border-brand-gold/20 rounded px-3 py-2 text-xs font-bold text-white outline-none focus:border-brand-gold/60 appearance-none cursor-pointer h-10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                            >
-                                <option value="" className="bg-brand-deep">
-                                    {analysisScope !== 'district' ? 'Switch to District scope' : !draftRegion ? 'Select a region first' : 'Select district'}
-                                </option>
-                                {districts.map(d => <option key={d} value={d} className="bg-brand-deep">{d}</option>)}
-                            </select>
-                            {districtsError && (
-                                <p className="text-[9px] text-red-400/70 pl-1 flex items-center gap-1">
-                                    <AlertTriangle size={9} /> {districtsError}
-                                </p>
-                            )}
-                            {activeDistrict && (
-                                <button
-                                    onClick={() => toggleLayer('district')}
-                                    className="flex items-center justify-between px-3 py-2 rounded border border-yellow-400/10 hover:border-yellow-400/20 bg-yellow-400/3 hover:bg-yellow-400/5 transition-all cursor-pointer"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3.5 h-3.5 rounded-sm border-2 border-yellow-400/50 shrink-0" />
-                                        <span className="text-[9px] font-medium text-white/35">Show boundary</span>
-                                    </div>
-                                    <div className={`relative w-8 h-4 rounded-full transition-all duration-200 ${selectedLayers.includes('district') ? 'bg-yellow-400/30' : 'bg-yellow-400/10'}`}>
-                                        <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all duration-200 ${selectedLayers.includes('district') ? 'right-0.5 bg-yellow-400' : 'left-0.5 bg-yellow-400/20'}`} />
-                                    </div>
-                                </button>
-                            )}
-                        </div>
-
-                        {(hasActiveAnalysis || hasDraftLocation) && (
-                            <button
-                                onClick={resetDashboard}
-                                className="flex items-center justify-center gap-1.5 py-2 text-[9px] font-medium text-white/25 hover:text-white/50 border border-white/8 hover:border-white/15 rounded transition-all"
-                            >
-                                <RotateCcw size={10} />
-                                Restore default view
-                            </button>
-                        )}
-                    </div>
-
-                    {/* ── Year ────────────────────────────────────── */}
-                    <div className="flex flex-col gap-2.5">
-                        <div className="flex items-baseline justify-between">
-                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Year</span>
-                            <span className="text-[15px] font-black text-brand-gold tabular-nums">{draftYear}</span>
-                        </div>
-                        <div id="tour-year-slider">
                             <input
                                 type="range"
                                 min={years[0] || 2015}
@@ -755,471 +577,204 @@ export default function Dashboard() {
                                 step="1"
                                 value={draftYear || years[years.length - 1] || 2024}
                                 onChange={(e) => setDraftYear(parseInt(e.target.value))}
-                                className="year-slider cursor-pointer"
-                                style={{
-                                    background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${sliderFill}%, rgba(5,46,22,0.8) ${sliderFill}%, rgba(5,46,22,0.8) 100%)`
-                                }}
+                                className="year-slider"
+                                style={{ background: `linear-gradient(to right, #d0542c 0%, #d0542c ${sliderFill}%, rgba(255,255,255,0.10) ${sliderFill}%, rgba(255,255,255,0.10) 100%)` }}
                             />
-                            {years.length > 0 && (
-                                <div className="flex justify-between mt-1">
-                                    {years.map((y) => (
-                                        <div key={y} className="flex flex-col items-center gap-0.5">
-                                            <div className={`w-px h-1.5 ${parseInt(y) === draftYear ? 'bg-brand-gold/60' : 'bg-brand-faded/15'}`} />
-                                            <span className={`text-[7px] font-bold tabular-nums ${parseInt(y) === draftYear ? 'text-brand-gold/70' : 'text-brand-faded/20'}`}>
-                                                {String(y).slice(-2)}
-                                            </span>
-                                        </div>
+                            {years.length > 0 ? (
+                                <div className="flex justify-between">
+                                    {years.map((year) => (
+                                        <span key={year} className={`font-mono text-[8px] ${parseInt(year) === draftYear ? 'text-brand-gold/78' : 'text-white/18'}`}>
+                                            {String(year).slice(-2)}
+                                        </span>
                                     ))}
                                 </div>
-                            )}
+                            ) : null}
+                        </div>
+
+                        <button onClick={runAnalysis} disabled={!canRunAnalysis} className="w-full bg-[#d0542c] px-4 py-3 text-[10px] font-semibold tracking-[0.06em] text-[#120f0c] transition-colors hover:bg-[#e37148] disabled:cursor-not-allowed disabled:opacity-40">
+                            {hasPendingChanges && hasActiveAnalysis ? 'Update Analysis' : 'Run Analysis'}
+                        </button>
+
+                        <div>
+                            <span className="text-[10px] font-bold tracking-[0.14em] text-white/80 uppercase">Legend</span>
+                            <div className="mt-2">
+                                <FloatingToggle label="Carbon stock" active={selectedLayers.includes('carbon')} onToggle={() => toggleLayer('carbon')} icon={TreePine} iconColor="#6f8f63" />
+                                <FloatingToggle label="Mining loss" active={selectedLayers.includes('mining')} onToggle={() => toggleLayer('mining')} icon={Pickaxe} iconColor="#e05252" />
+                                {hasActiveAnalysis ? <FloatingToggle label="Region boundary" active={selectedLayers.includes('region')} onToggle={() => toggleLayer('region')} icon={Layers} iconColor="#c8c8c8" /> : null}
+                                {activeDistrict ? <FloatingToggle label="District boundary" active={selectedLayers.includes('district')} onToggle={() => toggleLayer('district')} icon={MapPin} iconColor="#d4b27a" /> : null}
+                            </div>
                         </div>
                     </div>
+                    )}
+                </GlassPanel>
+            </div>
 
-                    {/* ── Map Layers ──────────────────────────────── */}
-                    <button
-                        onClick={runAnalysis}
-                        disabled={!canRunAnalysis}
-                        className="w-full rounded-lg bg-brand-gold px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-brand-deep transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                        Run Analysis
-                    </button>
-
-                    <div id="tour-map-layers" className="flex flex-col gap-2">
-                        <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Map Layers</span>
-                        {[
-                            { id: 'carbon', label: 'Carbon Stock', dot: 'bg-emerald-500' },
-                            { id: 'mining', label: 'Mining Loss',  dot: 'bg-red-500' },
-                        ].map(layer => (
-                            <button
-                                key={layer.id}
-                                onClick={() => toggleLayer(layer.id)}
-                                className={`flex items-center justify-between px-3 py-2.5 rounded border transition-all cursor-pointer ${selectedLayers.includes(layer.id) ? 'border-white/12 bg-white/4' : 'border-white/5 bg-transparent opacity-45'}`}
-                            >
-                                <div className="flex items-center gap-2.5">
-                                    <div className={`w-2 h-2 rounded-full shrink-0 ${layer.dot}`} />
-                                    <span className="text-[10px] font-semibold text-white/65">{layer.label}</span>
-                                </div>
-                                <div className={`relative w-8 h-4 rounded-full transition-all duration-200 ${selectedLayers.includes(layer.id) ? 'bg-white/20' : 'bg-white/8'}`}>
-                                    <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all duration-200 ${selectedLayers.includes(layer.id) ? 'right-0.5 bg-white' : 'left-0.5 bg-white/20'}`} />
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* ── Year Comparison (E) ─────────────────────── */}
-                    <div id="tour-year-comparison" className="flex flex-col gap-2.5">
+            <div id="tour-findings-panel" className={`absolute right-4 top-24 z-40 w-[22rem] max-w-[calc(100vw-2rem)] md:right-6 ${isMobile ? (mobilePanel === 'findings' ? 'translate-y-0' : '-translate-y-[120%] transition-transform duration-300') : ''}`}>
+                <GlassPanel className="pointer-events-auto border-white/10">
+                    <div className="border-b border-white/8 px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest block leading-none">Comparison</span>
-                                <p className="text-[9px] text-white/18 mt-1 leading-snug">Enable only when you want a side-by-side year review.</p>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold tracking-[0.14em] text-white/80 uppercase">Analysis Results</p>
+                                <p className="mt-1 text-[10px] leading-snug text-white/50">{activeDistrict || activeRegion || 'No analysis yet'}</p>
                             </div>
-                            <button
-                                onClick={() => { setCompareMode(!compareMode); if (compareMode) setCompareMetrics(null); }}
-                                className={`relative shrink-0 w-9 h-5 rounded-full transition-all duration-200 ${compareMode ? 'bg-brand-gold' : 'bg-white/10'}`}
-                            >
-                                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${compareMode ? 'right-0.5' : 'left-0.5'}`} />
-                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                                {loadingMetrics ? <Loader2 size={12} className="animate-spin text-brand-gold/50" /> : null}
+                                <button
+                                    onClick={() => setIsFindingsOpen(prev => !prev)}
+                                    className="rounded-lg p-1.5 text-white/34 transition-colors hover:bg-white/6 hover:text-white"
+                                    title={isFindingsOpen ? 'Collapse' : 'Expand'}
+                                >
+                                    {isFindingsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                </button>
+                            </div>
                         </div>
-                        {compareMode && (
-                            <select
-                                value={compareYear || ''}
-                                onChange={(e) => setCompareYear(parseInt(e.target.value))}
-                                className="w-full bg-brand-deep/40 border border-brand-gold/20 rounded px-3 py-2 text-xs font-bold text-white outline-none focus:border-brand-gold/60 appearance-none cursor-pointer h-10"
-                            >
-                                <option value="" className="bg-brand-deep">Select comparison year</option>
-                                {years.filter(y => parseInt(y) !== draftYear).map(y => (
-                                    <option key={y} value={y} className="bg-brand-deep">{y}</option>
-                                ))}
-                            </select>
-                        )}
                     </div>
 
- 
-                    {/* ── Data Sources ────────────────────────────── */}
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-1.5">
-                            <Database size={9} className="text-white/20" />
-                            <span className="text-[9px] font-semibold text-white/25 uppercase tracking-widest">Data Sources</span>
-                        </div>
-                        {visibleLegendLayers.length === 0 ? (
-                            <div className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-3 text-[9px] text-white/25">
-                                Run an analysis to show the layer sources for the selected area.
-                            </div>
+                    {isFindingsOpen && (
+                    <div className="px-4 py-4">
+                        {!hasActiveAnalysis ? (
+                            <p className="text-[11px] leading-relaxed text-white/42">
+                                Select a place and year, then run the analysis to populate this panel.
+                            </p>
                         ) : (
-                            visibleLegendLayers.filter(id => LAYER_INFO[id]).map(layerId => {
-                                const info = LAYER_INFO[layerId];
-                                return (
-                                    <div key={layerId} className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                                        <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${info.dot}`} />
-                                        <div className="flex flex-col gap-1.5 min-w-0">
-                                            <span className="text-[10px] font-semibold text-white/55 leading-none">{info.name}</span>
-                                            <span className="text-[9px] text-white/25 leading-snug">{info.source}</span>
-                                            <div className="flex gap-1 flex-wrap">
-                                                {[info.sensor, info.resolution, info.cadence].map((tag, i) => (
-                                                    <span key={i} className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/5 text-white/25">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                            </div>
+                            <>
+                                {metricsError ? (
+                                    <div className="border border-red-500/30 bg-red-500/10 px-3 py-2 text-[9px] text-red-200/76">
+                                        <div className="flex items-start gap-2">
+                                            <AlertTriangle size={11} className="mt-0.5 shrink-0 text-red-300" />
+                                            <span>{metricsError}</span>
                                         </div>
                                     </div>
-                                );
-                            })
-                        )}
-                    </div>
+                                ) : null}
 
-                    {/* Bottom actions */}
-                    <div className="mt-auto pt-1 flex flex-col gap-2">
-                        {/* Reset — always visible */}
-                        <button
-                            id="tour-reset"
-                            onClick={resetDashboard}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded border border-white/8 hover:border-red-500/30 text-white/25 hover:text-red-400 text-[10px] font-semibold transition-all cursor-pointer group"
-                        >
-                            <RotateCcw size={11} className="group-hover:rotate-[-360deg] transition-transform duration-500" />
-                            Restore Default View
-                        </button>
+                                <p className="font-display text-[1.1rem] leading-snug text-[#f3efe4]">{takeaway}</p>
 
-                    </div>
-                </div>
-            </div>
+                                <div className="mt-4">
+                                    <MetricStrip label="Forest carbon stock" value={stockFmt.value} suffix={stockFmt.suffix} delta={stockDelta} icon={TreePine} accentClass="text-[#6f8f63]" />
+                                    <MetricStrip label="Mining-driven loss" value={lossFmt.value} suffix={lossFmt.suffix} delta={lossDelta} icon={Pickaxe} accentClass="text-[#d0542c]" />
+                                </div>
 
-            {/* ══════════════════════════════ RIGHT PANEL ═════════════════════════════ */}
-            <div id="tour-right-panel" className={rightPanelClass}>
-                {/* Mobile drag handle */}
-                <div className="flex justify-center pt-2.5 pb-0.5 md:hidden shrink-0">
-                    <div className="w-10 h-1 rounded-full bg-white/20" />
-                </div>
-
-                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-5">
-
-                    {/* Header */}
-                    <div className="flex justify-between items-start">
-                        <button
-                            onClick={() => isMobile ? setMobilePanel(null) : setIsRightCollapsed(true)}
-                            className="p-1.5 hover:bg-brand-gold/10 text-brand-gold/50 hover:text-brand-gold border border-brand-gold/20 rounded transition-colors cursor-pointer shrink-0"
-                        >
-                            <ChevronRight size={16} />
-                        </button>
-                        <div className="flex flex-col items-end gap-0.5">
-                            <h2 className="text-white text-sm font-bold flex items-center gap-2">
-                                Carbon Metrics <BarChart3 size={13} className="text-brand-gold/50" />
-                            </h2>
-                            <p className="text-[9px] text-white/25 font-medium">
-                                {hasActiveAnalysis ? (activeDistrict || activeRegion) : 'Choose an area and run analysis'}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Metrics error */}
-                    {metricsError && (
-                        <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                            <AlertTriangle size={13} className="text-red-400 shrink-0 mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-bold text-red-400 mb-0.5">Unable to load metrics</p>
-                                <p className="text-[10px] text-red-300/70 leading-snug">{metricsError}</p>
-                            </div>
-                            <button onClick={() => setMetricsError(null)} className="shrink-0 text-red-400/50 hover:text-red-400 transition-colors">
-                                <X size={12} />
-                            </button>
-                        </div>
-                    )}
-
-                    {!hasActiveAnalysis ? (
-                        <div className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-5 text-center">
-                            <span className="block text-[9px] font-semibold uppercase tracking-widest text-white/25">Metrics Ready</span>
-                            <p className="mt-2 text-[10px] leading-relaxed text-white/35">
-                                Choose a region or district on the left, then press Run Analysis to load carbon metrics and trends.
-                            </p>
-                        </div>
-                    ) : (
-                    <div className={`flex flex-col gap-3 transition-opacity duration-300 ${loadingMetrics ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-                        {loadingMetrics && (
-                            <div className="flex items-center justify-center gap-2 py-1">
-                                <Loader2 size={12} className="animate-spin text-brand-gold/50" />
-                                <span className="text-[9px] font-medium text-brand-gold/40">Updating values...</span>
-                            </div>
-                        )}
-                        <KPI
-                            label="Forest Carbon Stock"
-                            value={stockFmt.value}
-                            suffix={stockFmt.suffix}
-                            unit={stockFmt.unit}
-                            trendValue={stockTrend}
-                            absoluteDelta={metrics.prevCarbonStock ? metrics.carbonStock - metrics.prevCarbonStock : null}
-                            prevYear={activeYear ? activeYear - 1 : null}
-                            icon={TreePine}
-                        />
-                        <KPI
-                            label="Mining-Driven Loss"
-                            value={lossFmt.value}
-                            suffix={lossFmt.suffix}
-                            unit={lossFmt.unit}
-                            trendValue={lossTrend}
-                            absoluteDelta={metrics.prevCarbonLoss ? metrics.carbonLoss - metrics.prevCarbonLoss : null}
-                            prevYear={activeYear ? activeYear - 1 : null}
-                            invertColor={true}
-                            icon={Pickaxe}
-                        />
-                    </div>
-                    )}
-
-                    {/* Year comparison panel */}
-                    {hasActiveAnalysis && compareMode && (
-                        <div className="rounded-xl border border-brand-gold/15 bg-brand-gold/[0.03]">
-                            <div className="flex items-center justify-between px-3 py-2 border-b border-brand-gold/10">
-                                <span className="text-[9px] font-semibold text-brand-gold/40">
-                                    {activeYear} vs {compareYear || '—'}
-                                </span>
-                                {loadingCompare && <Loader2 size={10} className="animate-spin text-brand-gold/40" />}
-                            </div>
-                            {compareMetrics ? (
-                                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 min-[420px]:divide-x divide-brand-gold/10">
-                                    {/* Stock cell */}
-                                    <div className="px-3 py-3 flex flex-col gap-1 min-w-0">
-                                        <div className="flex items-center gap-1.5 mb-1">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                            <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Stock</span>
-                                        </div>
-                                        <div className="flex flex-col gap-1.5 min-w-0">
-                                            <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
-                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{activeYear}</span>
-                                                <span className="text-[clamp(10px,2.4vw,11px)] leading-tight font-black text-white/75 tabular-nums text-right min-w-0 break-words">{fmtNum(metrics.carbonStock)}</span>
-                                            </div>
-                                            <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
-                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{compareYear}</span>
-                                                <span className="text-[clamp(9px,2.2vw,10px)] leading-tight font-bold text-white/40 tabular-nums text-right min-w-0 break-words">{fmtNum(compareMetrics.carbonStock)}</span>
-                                            </div>
-                                        </div>
-                                        {stockDelta !== null && (
-                                            <div className={`flex flex-wrap items-center gap-x-1 gap-y-0.5 mt-1 pt-1 border-t border-white/5 text-[8px] sm:text-[9px] leading-tight font-bold tabular-nums ${stockDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {stockDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} className="shrink-0" /> : <ArrowDown size={9} strokeWidth={2.5} className="shrink-0" />}
-                                                <span>{Math.abs(stockDelta).toFixed(1)}%</span>
-                                                <span className="text-current/80">{stockDelta >= 0 ? 'increase' : 'decrease'}</span>
-                                            </div>
-                                        )}
+                                <div className="mt-4">
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <span className="text-[9px] tracking-[0.12em] text-white/30 uppercase">Trend</span>
+                                        <span className="font-mono text-[9px] text-white/28">{activeYear}</span>
                                     </div>
-                                    {/* Loss cell */}
-                                    <div className="px-3 py-3 flex flex-col gap-1 min-w-0 border-t border-brand-gold/10 min-[420px]:border-t-0">
-                                        <div className="flex items-center gap-1.5 mb-1">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                                            <span className="text-[8px] font-semibold text-white/25 uppercase tracking-wide">Loss</span>
-                                        </div>
-                                        <div className="flex flex-col gap-1.5 min-w-0">
-                                            <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
-                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{activeYear}</span>
-                                                <span className="text-[clamp(10px,2.4vw,11px)] leading-tight font-black text-white/75 tabular-nums text-right min-w-0 break-words">{fmtNum(metrics.carbonLoss)}</span>
-                                            </div>
-                                            <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-2 min-w-0">
-                                                <span className="text-[8px] text-white/30 tabular-nums shrink-0">{compareYear}</span>
-                                                <span className="text-[clamp(9px,2.2vw,10px)] leading-tight font-bold text-white/40 tabular-nums text-right min-w-0 break-words">{fmtNum(compareMetrics.carbonLoss)}</span>
-                                            </div>
-                                        </div>
-                                        {lossDelta !== null && (
-                                            <div className={`flex flex-wrap items-center gap-x-1 gap-y-0.5 mt-1 pt-1 border-t border-white/5 text-[8px] sm:text-[9px] leading-tight font-bold tabular-nums ${lossDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                {lossDelta >= 0 ? <ArrowUp size={9} strokeWidth={2.5} className="shrink-0" /> : <ArrowDown size={9} strokeWidth={2.5} className="shrink-0" />}
-                                                <span>{Math.abs(lossDelta).toFixed(1)}%</span>
-                                                <span className="text-current/80">{lossDelta >= 0 ? 'increase' : 'decrease'}</span>
-                                            </div>
-                                        )}
+                                    <LossChart data={metrics.trend} loading={loadingMetrics} />
+                                </div>
+
+                                <div className="mt-4">
+                                    <div className="mb-2 flex items-center gap-2 text-white/36">
+                                        <Database size={10} />
+                                        <span className="text-[9px] tracking-[0.12em] uppercase">Sources</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {visibleLegendLayers.filter(id => LAYER_INFO[id]).map(layerId => {
+                                            const info = LAYER_INFO[layerId];
+                                            return (
+                                                <div key={layerId} className="grid grid-cols-[10px,minmax(0,1fr)] gap-2">
+                                                    <div className={`mt-1.5 h-2 w-2 rounded-full ${info.dot}`} />
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] font-medium text-white/68">{info.name}</p>
+                                                        <p className="mt-0.5 text-[9px] leading-snug text-white/28">{info.source}</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="px-3 py-4 text-center text-[9px] text-white/20 font-medium">
-                                    {loadingCompare ? 'Loading comparison...' : compareYear ? 'No comparison data available for the selected year' : 'Select a comparison year in the filters panel'}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Takeaway */}
-                    {hasActiveAnalysis && !loadingMetrics && takeaway && (
-                        <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border ${takeawayStyle[takeaway.type]}`}>
-                            <div className={`w-1.5 h-1.5 rounded-full mt-[3px] shrink-0 ${takeawayDot[takeaway.type]}`} />
-                            <span className="text-[10px] font-medium text-white/55 leading-snug">{takeaway.text}</span>
-                        </div>
-                    )}
-
-                    {hasActiveAnalysis && <div className="h-px bg-white/5 w-full" />}
-
-                    {/* Loss trend */}
-                    {hasActiveAnalysis && (
-                    <div className="flex flex-col gap-3">
-                        <span className="text-[9px] font-semibold text-white/30">Loss Trend</span>
-                        <LossChart data={metrics.trend} loading={loadingMetrics} />
+                            </>
+                        )}
                     </div>
                     )}
+                </GlassPanel>
+            </div>
 
+
+            {/* Map controls — bottom-centre, horizontal, clear of both panels */}
+            <div className="absolute bottom-6 left-1/2 z-40 hidden -translate-x-1/2 md:flex items-center gap-2">
+                {/* Compass */}
+                <button onClick={() => setMapCommand({ type: 'reset', t: Date.now() })} title="Reset view" className="map-ctrl flex h-11 w-11 items-center justify-center rounded-2xl transition-colors hover:bg-white/6">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <polygon points="10,2 12.5,10 10,8.5 7.5,10" fill="#d0542c" />
+                        <polygon points="10,18 12.5,10 10,11.5 7.5,10" fill="rgba(255,255,255,0.25)" />
+                        <circle cx="10" cy="10" r="1.5" fill="rgba(255,255,255,0.5)" />
+                    </svg>
+                </button>
+
+                {/* Zoom pill */}
+                <div className="map-ctrl flex overflow-hidden rounded-2xl">
+                    <button onClick={() => setZoomCommand({ type: 'in', t: Date.now() })} title="Zoom in" className="flex h-11 w-11 items-center justify-center text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                        <Plus size={16} strokeWidth={2} />
+                    </button>
+                    <div className="my-3 w-px bg-white/8" />
+                    <button onClick={() => setZoomCommand({ type: 'out', t: Date.now() })} title="Zoom out" className="flex h-11 w-11 items-center justify-center text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                        <Minus size={16} strokeWidth={2} />
+                    </button>
                 </div>
 
-                {/* Status bar */}
-                <div className="px-5 py-3 bg-brand-gold/5 border-t border-brand-gold/10 flex items-center justify-between shrink-0">
-                    <span className="text-[8px] font-medium text-white/20">
-                        {hasActiveAnalysis ? `${activeDistrict || activeRegion} · ${activeYear}` : 'Waiting for analysis'}
-                    </span>
-                    <div className={`w-1.5 h-1.5 rounded-full ${systemStatus.dotClass}`} />
+                {/* Basemap toggle — picker opens upward */}
+                <div className="relative">
+                    {showBasemaps ? (
+                        <div className="map-ctrl absolute bottom-full left-1/2 mb-2 w-52 -translate-x-1/2 overflow-hidden rounded-2xl">
+                            <div className="border-b border-white/8 px-4 py-3">
+                                <span className="text-[10px] font-bold tracking-[0.12em] text-white/55 uppercase">Base map</span>
+                            </div>
+                            <div className="py-1">
+                                {[
+                                    { id: 'dark', label: 'Dark' },
+                                    { id: 'satellite', label: 'Satellite' },
+                                    { id: 'osm', label: 'Classic' },
+                                ].map((opt) => {
+                                    const active = basemap === opt.id;
+                                    return (
+                                        <button
+                                            key={opt.id}
+                                            onClick={() => { setBasemap(opt.id); setShowBasemaps(false); }}
+                                            className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${active ? 'bg-brand-gold/8' : 'hover:bg-white/5'}`}
+                                        >
+                                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors ${active ? 'border-brand-gold bg-brand-gold/15' : 'border-white/20'}`}>
+                                                {active && <span className="h-1.5 w-1.5 rounded-full bg-brand-gold" />}
+                                            </span>
+                                            <span className={`text-[11px] font-medium transition-colors ${active ? 'text-[#eab08c]' : 'text-white/55'}`}>{opt.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : null}
+                    <button onClick={() => setShowBasemaps(prev => !prev)} title="Basemap" className={`map-ctrl flex h-11 w-11 items-center justify-center rounded-2xl transition-colors ${showBasemaps ? 'text-brand-gold' : 'text-white/55 hover:bg-white/6 hover:text-white'}`}>
+                        <Layers size={16} strokeWidth={1.6} />
+                    </button>
                 </div>
+
+                {/* Locate */}
+                <button onClick={handleLocate} title="My location" className="map-ctrl flex h-11 w-11 items-center justify-center rounded-2xl text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                    <Crosshair size={16} strokeWidth={1.6} />
+                </button>
+
+                {/* Share */}
+                <button onClick={handleShare} title={shareCopied ? 'Copied!' : 'Share view'} className={`map-ctrl flex h-11 w-11 items-center justify-center rounded-2xl transition-colors ${shareCopied ? 'text-[#6f8f63]' : 'text-white/55 hover:bg-white/6 hover:text-white'}`}>
+                    <Share2 size={16} strokeWidth={1.6} />
+                </button>
+
+                {/* Fullscreen */}
+                <button onClick={handleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'} className="map-ctrl flex h-11 w-11 items-center justify-center rounded-2xl text-white/55 transition-colors hover:bg-white/6 hover:text-white">
+                    {isFullscreen ? <Minimize2 size={16} strokeWidth={1.6} /> : <Maximize2 size={16} strokeWidth={1.6} />}
+                </button>
             </div>
 
-            {/* Desktop reveal buttons */}
-            <button
-                onClick={() => setIsLeftCollapsed(false)}
-                className={`hidden md:block absolute top-20 left-4 z-30 p-3 bg-brand-deep/95 border border-brand-gold/40 text-brand-gold rounded shadow-2xl transition-all duration-300 cursor-pointer ${isLeftCollapsed ? 'translate-x-0 opacity-100 scale-100' : '-translate-x-20 opacity-0 pointer-events-none scale-90'}`}
-                title="Open Filters"
-            >
-                <Menu size={20} />
-            </button>
-            <button
-                onClick={() => setIsRightCollapsed(false)}
-                className={`hidden md:block absolute top-20 right-4 z-30 p-3 bg-brand-deep/95 border border-brand-gold/40 text-brand-gold rounded shadow-2xl transition-all duration-300 cursor-pointer ${isRightCollapsed ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-20 opacity-0 pointer-events-none scale-90'}`}
-                title="Open Metrics"
-            >
-                <BarChart3 size={20} />
-            </button>
-
-            {/* Legend floating panel + button — desktop only, mirrors zoom controls pattern */}
-            <div
-                className={`absolute z-30 flex flex-col items-start gap-3 transition-all duration-500 ${
-                    isMobile
-                        ? 'bottom-20 left-4'
-                        : `hidden md:flex bottom-12 ${isLeftCollapsed ? 'left-6' : 'left-[336px]'}`
-                }`}
-            >
-                {isLegendOpen && (
-                    <div className={`mb-1 animate-in fade-in duration-200 ${isMobile ? 'slide-in-from-bottom-4' : 'slide-in-from-left-4'}`}>
-                        <LegendPanel
-                            isOpen={isLegendOpen}
-                            onClose={() => setIsLegendOpen(false)}
-                            activeLayers={visibleLegendLayers}
-                            className={isMobile ? 'max-w-[calc(100vw-2rem)]' : ''}
-                        />
-                    </div>
-                )}
-                <GlassPanel className="flex flex-col gap-1 p-1 shadow-2xl rounded-lg">
-                    <button
-                        onClick={() => setIsLegendOpen(!isLegendOpen)}
-                        className={`p-2.5 transition-all rounded cursor-pointer ${isLegendOpen ? 'text-brand-gold bg-brand-gold/20' : 'text-brand-faded hover:text-white hover:bg-brand-gold/20'}`}
-                        title="Toggle Legend"
-                    >
-                        <Layers size={18} />
-                    </button>
-                </GlassPanel>
-            </div>
-
-            {/* Map controls — desktop only */}
-            <div className={`hidden md:flex absolute bottom-12 z-30 flex-col gap-3 items-end transition-all duration-500 ${isRightCollapsed ? 'right-6' : 'right-[336px]'}`}>
-                {showBasemaps && (
-                    <div className="mb-1 animate-in fade-in slide-in-from-right-4 duration-200">
-                        <GlassPanel className="flex flex-col p-1 shadow-2xl min-w-[140px] rounded-lg">
-                            {[
-                                { id: 'dark', label: 'Dark Matter' },
-                                { id: 'satellite', label: 'Satellite' },
-                                { id: 'osm', label: 'Classic Map' }
-                            ].map(opt => (
-                                <button
-                                    key={opt.id}
-                                    onClick={() => { setBasemap(opt.id); setShowBasemaps(false); }}
-                                    className={`px-3 py-2.5 text-[10px] font-semibold text-left rounded transition-colors ${basemap === opt.id ? 'bg-brand-gold/20 text-brand-gold' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </GlassPanel>
-                    </div>
-                )}
-                <GlassPanel className="flex flex-col gap-1 p-1 shadow-2xl rounded-lg">
-                    <button onClick={() => setZoomCommand({ type: 'in', t: Date.now() })} className="p-2.5 text-brand-faded hover:text-white hover:bg-brand-gold/20 transition-all rounded cursor-pointer" title="Zoom In">
-                        <Plus size={18} />
-                    </button>
-                    <div className="h-px bg-brand-gold/10 mx-2" />
-                    <button onClick={() => setZoomCommand({ type: 'out', t: Date.now() })} className="p-2.5 text-brand-faded hover:text-white hover:bg-brand-gold/20 transition-all rounded cursor-pointer" title="Zoom Out">
-                        <Minus size={18} />
-                    </button>
-                    <div className="h-px bg-brand-gold/10 mx-2" />
-                    <button
-                        onClick={() => setShowBasemaps(!showBasemaps)}
-                        className={`p-2.5 transition-all rounded cursor-pointer ${showBasemaps ? 'text-brand-gold bg-brand-gold/20' : 'text-brand-faded hover:text-white hover:bg-brand-gold/20'}`}
-                        title="Switch Basemap"
-                    >
-                        <MapIcon size={18} />
-                    </button>
-                </GlassPanel>
-            </div>
-
-            <div className="fixed bottom-20 right-4 z-30 flex flex-col items-end gap-3 md:hidden">
-                {showBasemaps && (
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-200">
-                        <GlassPanel className="flex min-w-[140px] flex-col rounded-lg p-1 shadow-2xl">
-                            {[
-                                { id: 'dark', label: 'Dark Matter' },
-                                { id: 'satellite', label: 'Satellite' },
-                                { id: 'osm', label: 'Classic Map' }
-                            ].map(opt => (
-                                <button
-                                    key={opt.id}
-                                    onClick={() => { setBasemap(opt.id); setShowBasemaps(false); }}
-                                    className={`rounded px-3 py-2.5 text-left text-[10px] font-semibold transition-colors ${basemap === opt.id ? 'bg-brand-gold/20 text-brand-gold' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </GlassPanel>
-                    </div>
-                )}
-                <GlassPanel className="flex flex-col gap-1 rounded-lg p-1 shadow-2xl">
-                    <button onClick={() => setZoomCommand({ type: 'in', t: Date.now() })} className="rounded p-2.5 text-brand-faded transition-all hover:bg-brand-gold/20 hover:text-white" title="Zoom In">
-                        <Plus size={18} />
-                    </button>
-                    <div className="mx-2 h-px bg-brand-gold/10" />
-                    <button onClick={() => setZoomCommand({ type: 'out', t: Date.now() })} className="rounded p-2.5 text-brand-faded transition-all hover:bg-brand-gold/20 hover:text-white" title="Zoom Out">
-                        <Minus size={18} />
-                    </button>
-                    <div className="mx-2 h-px bg-brand-gold/10" />
-                    <button
-                        onClick={() => setShowBasemaps(!showBasemaps)}
-                        className={`rounded p-2.5 transition-all ${showBasemaps ? 'bg-brand-gold/20 text-brand-gold' : 'text-brand-faded hover:bg-brand-gold/20 hover:text-white'}`}
-                        title="Switch Basemap"
-                    >
-                        <MapIcon size={18} />
-                    </button>
-                    <div className="mx-2 h-px bg-brand-gold/10" />
-                    <button
-                        onClick={() => setIsLegendOpen(prev => !prev)}
-                        className={`rounded p-2.5 transition-all ${isLegendOpen ? 'bg-brand-gold/20 text-brand-gold' : 'text-brand-faded hover:bg-brand-gold/20 hover:text-white'}`}
-                        title="Toggle Legend"
-                    >
-                        <Layers size={18} />
-                    </button>
-                </GlassPanel>
-            </div>
-
-            {/* About modal — shows on first visit or when triggered */}
-            <AboutModal
-                isOpen={isAboutOpen}
-                onClose={closeAboutModal}
-                onOpenTour={openTourFromAbout}
-                canOpenTour={!isMobile}
-            />
-
-            {/* Tour guide — desktop only, auto-starts on first visit */}
+            <AboutModal isOpen={isAboutOpen} onClose={closeAboutModal} onOpenTour={openTourFromAbout} canOpenTour={!isMobile} />
             <TourGuide autoStart={tourTrigger} />
 
-            {/* Mobile bottom nav */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 h-14 bg-brand-deep/95 backdrop-blur-md border-t border-brand-gold/20 flex items-stretch md:hidden">
-                <button
-                    onClick={() => setMobilePanel(p => p === 'left' ? null : 'left')}
-                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobilePanel === 'left' ? 'text-brand-gold' : 'text-white/25'}`}
-                >
+            <div className="fixed bottom-0 left-0 right-0 z-50 flex h-14 items-stretch border-t border-white/8 bg-[#121519]/96 backdrop-blur-sm md:hidden">
+                <button onClick={() => setMobilePanel(p => p === 'setup' ? null : 'setup')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobilePanel === 'setup' ? 'text-[#eab08c]' : 'text-white/28'}`}>
                     <Menu size={18} />
-                    <span className="text-[8px] font-semibold">Filters</span>
+                    <span className="text-[8px] font-medium">Setup</span>
                 </button>
-                <div className="w-px bg-brand-gold/10 my-3" />
-                <button
-                    onClick={() => setMobilePanel(p => p === 'right' ? null : 'right')}
-                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobilePanel === 'right' ? 'text-brand-gold' : 'text-white/25'}`}
-                >
+                <div className="my-3 w-px bg-white/8" />
+                <button onClick={() => setMobilePanel(p => p === 'findings' ? null : 'findings')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobilePanel === 'findings' ? 'text-[#eab08c]' : 'text-white/28'}`}>
                     <BarChart3 size={18} />
-                    <span className="text-[8px] font-semibold">Metrics</span>
+                    <span className="text-[8px] font-medium">Findings</span>
                 </button>
             </div>
         </div>

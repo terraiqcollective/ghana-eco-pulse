@@ -34,6 +34,8 @@ function MapController({ bounds, zoomCommand, mapCommand }) {
         if (!mapCommand) return;
         if (mapCommand.type === 'reset') {
             map.flyTo([7.5, -1.2], 8, { duration: 1.8, easeLinearity: 0.25 });
+        } else if (mapCommand.type === 'flyTo') {
+            map.flyTo([mapCommand.lat, mapCommand.lng], mapCommand.zoom ?? 13, { duration: 1.5, easeLinearity: 0.25 });
         }
     }, [mapCommand, map]);
 

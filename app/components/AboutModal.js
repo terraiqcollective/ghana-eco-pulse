@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { X, ShieldAlert, Database, HelpCircle } from 'lucide-react';
+import { X, Play, Map, Database } from 'lucide-react';
 import { BrandMark } from './BrandMark';
 
 export function AboutModal({ isOpen = false, onClose, onOpenTour, canOpenTour = true }) {
@@ -9,9 +9,7 @@ export function AboutModal({ isOpen = false, onClose, onOpenTour, canOpenTour = 
         if (!isOpen) return;
 
         const handleKeyDown = (event) => {
-            if (event.key === 'Escape') {
-                onClose?.();
-            }
+            if (event.key === 'Escape') onClose?.();
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -22,86 +20,62 @@ export function AboutModal({ isOpen = false, onClose, onOpenTour, canOpenTour = 
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/62 backdrop-blur-[4px]" onClick={onClose} />
 
-            <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-brand-gold/25 bg-brand-deep shadow-[0_32px_80px_rgba(0,0,0,0.7)]">
-                <div className="flex items-start justify-between gap-4 border-b border-white/6 px-6 pb-4 pt-6">
+            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#111418]/78 shadow-[0_32px_80px_rgba(0,0,0,0.58)] backdrop-blur-xl">
+                <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 pb-4 pt-5">
                     <div className="flex items-center gap-3">
-                        <BrandMark className="h-10 w-10 shrink-0 rounded-[10px]" />
+                        <BrandMark className="h-10 w-10 shrink-0" />
                         <div>
-                            <h2 className="text-base font-bold leading-none tracking-wide text-white">
-                                <span className="text-white/90">Eco</span><span className="text-brand-gold">Pulse</span> Ghana
+                            <h2 className="font-display text-[1.25rem] font-medium leading-none text-[#f3efe4]">
+                                Eco<span className="text-brand-gold">Pulse</span>
                             </h2>
-                            <p className="mt-1 text-[9px] font-medium uppercase tracking-widest text-white/30">
-                                Forest Carbon Monitoring Portal
-                            </p>
+                            <p className="mt-1 text-[10px] text-white/42">Forest carbon monitoring for Ghana.</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="shrink-0 p-1.5 text-white/20 transition-colors hover:text-white/60"
-                        aria-label="Close About modal"
+                        className="rounded-md p-1.5 text-white/34 transition-colors hover:bg-white/5 hover:text-white/72"
+                        aria-label="Close"
                     >
                         <X size={14} />
                     </button>
                 </div>
 
-                <div className="custom-scrollbar flex max-h-[60vh] flex-col gap-5 overflow-y-auto px-6 py-5">
-                    <div>
-                        <p className="text-[11px] leading-relaxed text-white/55">
-                            EcoPulse Ghana is a satellite-driven monitoring platform developed to track forest carbon stock and mining-driven carbon loss across Ghana&apos;s forest zones. It combines data from multiple Earth observation sources to generate annual estimates at regional and district level.
-                        </p>
-                    </div>
+                <div className="px-5 py-5">
+                    <p className="text-[12px] leading-relaxed text-white/62">
+                        Choose a region or district, pick a year, then run the analysis to view carbon stock, mining loss, and map layers for that area.
+                    </p>
 
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-1.5">
-                            <Database size={9} className="text-brand-gold/50" />
-                            <span className="text-[9px] font-semibold uppercase tracking-widest text-white/30">Data Coverage</span>
+                    <div className="mt-5 space-y-3">
+                        <div className="flex items-start gap-3">
+                            <Map size={14} className="mt-0.5 shrink-0 text-brand-gold/75" />
+                            <p className="text-[10px] leading-relaxed text-white/46">The map is the main workspace. Layers stay tied to the selected area.</p>
                         </div>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                            {[
-                                { label: 'Time Range', value: '2019 - 2024' },
-                                { label: 'Resolution', value: '4.77m - 25m' },
-                                { label: 'Update Cadence', value: 'Annual' },
-                            ].map(item => (
-                                <div key={item.label} className="flex flex-col gap-1 rounded-lg border border-white/5 bg-white/[0.03] p-2.5">
-                                    <span className="text-[8px] font-semibold uppercase tracking-wide text-white/25">{item.label}</span>
-                                    <span className="text-[10px] font-bold text-white/65">{item.value}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex items-start gap-3 rounded-xl border border-amber-500/15 bg-amber-500/5 p-3.5">
-                        <ShieldAlert size={14} className="mt-0.5 shrink-0 text-amber-400/70" />
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400/80">Important Disclaimer</span>
-                            <p className="text-[10px] leading-relaxed text-white/40">
-                                All figures presented in this portal are <strong className="text-white/55">satellite-derived estimates</strong> produced using computational models. They are intended for research, planning, and policy exploration purposes only. Results may contain errors and <strong className="text-white/55">should not be treated as ground-truth measurements</strong> or cited as empirical facts without independent verification. TerraIQ Collective accepts no liability for decisions made on the basis of this data.
-                            </p>
+                        <div className="flex items-start gap-3">
+                            <Database size={14} className="mt-0.5 shrink-0 text-brand-gold/75" />
+                            <p className="text-[10px] leading-relaxed text-white/46">All values are satellite-derived estimates intended for research and exploration.</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex flex-col-reverse gap-3 border-t border-white/6 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2 border-t border-white/8 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                     {canOpenTour ? (
                         <button
                             onClick={onOpenTour}
-                            className="flex w-full items-center justify-center gap-1.5 text-[9px] font-semibold text-white/30 transition-colors hover:text-white/60 sm:w-auto"
+                            className="flex items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-[10px] font-medium text-white/62 transition-colors hover:bg-white/6 hover:text-white sm:justify-start"
                         >
-                            <HelpCircle size={11} />
-                            Take a guided tour
+                            <Play size={11} />
+                            Quick tour
                         </button>
                     ) : (
-                        <span className="text-center text-[9px] font-medium text-white/25 sm:text-left">
-                            Guided tour is available on desktop.
-                        </span>
+                        <span className="text-center text-[10px] text-white/32 sm:text-left">Quick tour is available on desktop.</span>
                     )}
                     <button
                         onClick={onClose}
-                        className="w-full rounded-lg bg-brand-gold px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-brand-deep transition-opacity hover:opacity-90 sm:w-auto"
+                        className="rounded-lg bg-[#d0542c] px-5 py-2.5 text-[10px] font-semibold text-[#120f0c] transition-colors hover:bg-[#e37148]"
                     >
-                        Get Started
+                        Start exploring
                     </button>
                 </div>
             </div>

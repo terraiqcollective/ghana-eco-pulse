@@ -646,9 +646,9 @@ export default function Dashboard() {
                 </GlassPanel>
             </div>
 
-            <div id="tour-findings-panel" className={`absolute right-4 top-24 z-40 w-[24rem] max-w-[calc(100vw-2rem)] ${isMobile ? (mobilePanel === 'findings' ? 'translate-y-0' : '-translate-y-[120%] transition-transform duration-300') : ''}`}>
-                <GlassPanel className="pointer-events-auto border-white/10">
-                    <div className="border-b border-white/8 px-5 py-3.5">
+            <div id="tour-findings-panel" className={`absolute right-4 top-24 z-40 flex max-h-[calc(100vh-7rem)] w-[24rem] max-w-[calc(100vw-2rem)] flex-col ${isMobile ? (mobilePanel === 'findings' ? 'translate-y-0' : '-translate-y-[120%] transition-transform duration-300') : ''}`}>
+                <GlassPanel className="pointer-events-auto flex flex-col border-white/10">
+                    <div className="shrink-0 border-b border-white/8 px-5 py-3.5">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="text-[10px] font-bold tracking-[0.14em] text-white/80 uppercase">Analysis Results</p>
@@ -668,7 +668,7 @@ export default function Dashboard() {
                     </div>
 
                     {isFindingsOpen && (
-                    <div className="px-5 py-5">
+                    <div className="overflow-y-auto px-5 py-5">
                         {!hasActiveAnalysis ? (
                             <p className="text-[12px] leading-relaxed text-white/42">
                                 Select a place and year, then run the analysis to populate this panel.

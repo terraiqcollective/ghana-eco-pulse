@@ -50,6 +50,49 @@ function MapController({ bounds, region, zoomCommand, mapCommand }) {
     return null;
 }
 
+function HoverLayer({ data }) {
+    const map = useMap();
+    return (
+        <GeoJSON
+            data={data}
+            style={() => ({ stroke: false, fillOpacity: 0.001 })}
+            onEachFeature={(feature, layer) => {
+                const name = feature.properties?.DISTRICTS || feature.properties?.REGIONS || '';
+                if (!name) return;
+
+                layer.bindTooltip(name, {
+                    sticky: true,
+                    permanent: false,
+                    className: 'district-tooltip',
+                    direction: 'top',
+                    offset: [0, -4],
+                });
+
+                let idleTimer = null;
+
+                const resetTimer = () => {
+                    if (idleTimer) clearTimeout(idleTimer);
+                    idleTimer = setTimeout(() => layer.closeTooltip(), 1200);
+                };
+
+                layer.on('mousemove', () => {
+                    if (!layer.isTooltipOpen()) layer.openTooltip();
+                    resetTimer();
+                });
+
+                layer.on('mouseout', () => {
+                    if (idleTimer) clearTimeout(idleTimer);
+                    layer.closeTooltip();
+                });
+
+                layer.on('click', () => {
+                    map.flyToBounds(layer.getBounds(), { duration: 1.2, easeLinearity: 0.25, padding: [40, 40] });
+                });
+            }}
+        />
+    );
+}
+
 export default function MapComponent({
     year,
     region,
@@ -182,26 +225,9 @@ export default function MapComponent({
                 )}
 
                 {hoverGeoJSON && (
-                    <GeoJSON
+                    <HoverLayer
                         key={`${fetchedFilters.region}-${fetchedFilters.district}`}
                         data={hoverGeoJSON}
-                        style={() => ({
-                            fillOpacity: 0.01,
-                            fillColor: '#ffffff',
-                            weight: 0,
-                            opacity: 0,
-                        })}
-                        onEachFeature={(feature, layer) => {
-                            const name = feature.properties?.DISTRICTS || feature.properties?.REGIONS || '';
-                            if (name) {
-                                layer.bindTooltip(name, {
-                                    sticky: true,
-                                    className: 'district-tooltip',
-                                    direction: 'top',
-                                    offset: [0, -4],
-                                });
-                            }
-                        }}
                     />
                 )}
 

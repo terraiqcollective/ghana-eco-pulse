@@ -31,11 +31,13 @@ import {
 import { GlassPanel } from './GlassPanel';
 import { TourGuide } from './TourGuide';
 import { AboutModal } from './AboutModal';
+import { DisclaimerModal } from './DisclaimerModal';
 import { RequestDataModal } from './RequestDataModal';
 import { LossChart } from './LossChart';
 import { BrandMark } from './BrandMark';
 
 const ABOUT_KEY = 'ecopulse_about_seen';
+const DISCLAIMER_KEY = 'ecopulse_disclaimer_seen';
 const ANALYSIS_SCOPES = {
     region: 'Region',
     district: 'District',
@@ -111,20 +113,20 @@ function FloatingToggle({ label, active, onToggle, icon: Icon, iconColor }) {
 
 function MetricStrip({ label, value, suffix, delta, icon: Icon, accentClass }) {
     return (
-        <div className="grid grid-cols-[minmax(0,1fr),auto] gap-3 py-3">
+        <div className="grid grid-cols-[minmax(0,1fr),auto] gap-3 py-3.5">
             <div className="min-w-0">
                 <div className="flex items-center gap-2 text-white/42">
-                    <Icon size={12} className={accentClass} />
-                    <span className="text-[10px] font-medium">{label}</span>
+                    <Icon size={13} className={accentClass} />
+                    <span className="text-[11px] font-medium">{label}</span>
                 </div>
-                <div className="mt-1.5 flex items-end gap-1.5">
-                    <span className="font-display text-[1.8rem] leading-none text-[#f3efe4]">{value}</span>
-                    {suffix ? <span className="font-display pb-0.5 text-[1rem] leading-none text-white/54">{suffix}</span> : null}
+                <div className="mt-2 flex items-end gap-1.5">
+                    <span className="font-display text-[2rem] leading-none text-[#f3efe4]">{value}</span>
+                    {suffix ? <span className="font-display pb-1 text-[1.1rem] leading-none text-white/54">{suffix}</span> : null}
                 </div>
-                <span className="mt-1 block text-[9px] text-white/28">tonnes C</span>
+                <span className="mt-1 block text-[10px] text-white/28">tonnes C</span>
             </div>
-            <div className="flex min-w-[64px] items-end justify-end">
-                <span className={`font-mono text-[9px] ${delta === null ? 'text-white/26' : delta >= 0 ? 'text-[#9a5d3f]' : 'text-[#6f8f63]'}`}>
+            <div className="flex min-w-[68px] items-end justify-end">
+                <span className={`font-mono text-[10px] ${delta === null ? 'text-white/26' : delta >= 0 ? 'text-[#9a5d3f]' : 'text-[#6f8f63]'}`}>
                     {delta === null ? '-' : `${delta >= 0 ? '+' : '-'}${Math.abs(delta).toFixed(1)}%`}
                 </span>
             </div>
@@ -138,6 +140,7 @@ export default function Dashboard() {
     const [isSetupOpen, setIsSetupOpen] = useState(true);
     const [isFindingsOpen, setIsFindingsOpen] = useState(true);
     const [tourTrigger, setTourTrigger] = useState(0);
+    const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(false);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
     const [isRequestOpen, setIsRequestOpen] = useState(false);
 
@@ -150,10 +153,17 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        const seen = window.localStorage.getItem(ABOUT_KEY);
-        if (seen) return;
-        const timeoutId = window.setTimeout(() => setIsAboutOpen(true), 600);
-        return () => window.clearTimeout(timeoutId);
+        const disclaimerSeen = window.localStorage.getItem(DISCLAIMER_KEY);
+        if (disclaimerSeen) {
+            const aboutSeen = window.localStorage.getItem(ABOUT_KEY);
+            if (!aboutSeen) {
+                const id = window.setTimeout(() => setIsAboutOpen(true), 600);
+                return () => window.clearTimeout(id);
+            }
+            return;
+        }
+        const id = window.setTimeout(() => setIsDisclaimerOpen(true), 400);
+        return () => window.clearTimeout(id);
     }, []);
 
     const [zoomCommand, setZoomCommand] = useState(null);
@@ -207,6 +217,13 @@ export default function Dashboard() {
         }
         setMapCommand({ type: 'reset', t: Date.now() });
     }, [years]);
+
+    const handleDisclaimerAccept = useCallback(() => {
+        if (typeof window !== 'undefined') window.localStorage.setItem(DISCLAIMER_KEY, '1');
+        setIsDisclaimerOpen(false);
+        const aboutSeen = typeof window !== 'undefined' && window.localStorage.getItem(ABOUT_KEY);
+        if (!aboutSeen) setTimeout(() => setIsAboutOpen(true), 300);
+    }, []);
 
     const closeAboutModal = useCallback(() => {
         if (typeof window !== 'undefined') window.localStorage.setItem(ABOUT_KEY, '1');
@@ -481,29 +498,31 @@ export default function Dashboard() {
                         </div>
                     </GlassPanel>
                 ) : null}
-                <GlassPanel className="pointer-events-auto rounded-xl p-1">
-                    <button onClick={() => setTourTrigger(prev => prev + 1)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
-                        <span className="flex items-center gap-2"><HelpCircle size={11} /> Help</span>
-                    </button>
-                </GlassPanel>
-                <GlassPanel className="pointer-events-auto rounded-xl p-1">
-                    <button onClick={() => setIsAboutOpen(true)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
-                        <span className="flex items-center gap-2"><Info size={11} /> About</span>
-                    </button>
-                </GlassPanel>
-                <GlassPanel className="pointer-events-auto rounded-xl p-1">
-                    <a href="https://github.com/terraiqcollective/ghana-eco-pulse" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-                        </svg>
-                        GitHub
-                    </a>
-                </GlassPanel>
-                <GlassPanel className="pointer-events-auto rounded-xl p-1">
-                    <button onClick={() => setIsRequestOpen(true)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
-                        <span className="flex items-center gap-2"><Send size={11} /> Request Data</span>
-                    </button>
-                </GlassPanel>
+                <div className="flex w-[24rem] items-center gap-2">
+                    <GlassPanel className="pointer-events-auto flex-1 rounded-xl">
+                        <button onClick={() => setTourTrigger(prev => prev + 1)} className="flex h-full w-full items-center justify-center gap-2 px-3 py-3 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                            <HelpCircle size={11} /> Help
+                        </button>
+                    </GlassPanel>
+                    <GlassPanel className="pointer-events-auto rounded-xl p-1">
+                        <button onClick={() => setIsAboutOpen(true)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                            <span className="flex items-center gap-2"><Info size={11} /> About</span>
+                        </button>
+                    </GlassPanel>
+                    <GlassPanel className="pointer-events-auto rounded-xl p-1">
+                        <a href="https://github.com/terraiqcollective/ghana-eco-pulse" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                            </svg>
+                            GitHub
+                        </a>
+                    </GlassPanel>
+                    <GlassPanel className="pointer-events-auto rounded-xl p-1">
+                        <button onClick={() => setIsRequestOpen(true)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                            <span className="flex items-center gap-2"><Send size={11} /> Request Data</span>
+                        </button>
+                    </GlassPanel>
+                </div>
             </div>
 
             {mobilePanel !== null ? <div className="fixed inset-0 z-30 bg-black/55 md:hidden" onClick={() => setMobilePanel(null)} /> : null}
@@ -627,13 +646,13 @@ export default function Dashboard() {
                 </GlassPanel>
             </div>
 
-            <div id="tour-findings-panel" className={`absolute right-4 top-24 z-40 w-[22rem] max-w-[calc(100vw-2rem)] md:right-6 ${isMobile ? (mobilePanel === 'findings' ? 'translate-y-0' : '-translate-y-[120%] transition-transform duration-300') : ''}`}>
+            <div id="tour-findings-panel" className={`absolute right-4 top-24 z-40 w-[24rem] max-w-[calc(100vw-2rem)] ${isMobile ? (mobilePanel === 'findings' ? 'translate-y-0' : '-translate-y-[120%] transition-transform duration-300') : ''}`}>
                 <GlassPanel className="pointer-events-auto border-white/10">
-                    <div className="border-b border-white/8 px-4 py-3">
+                    <div className="border-b border-white/8 px-5 py-3.5">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="text-[10px] font-bold tracking-[0.14em] text-white/80 uppercase">Analysis Results</p>
-                                <p className="mt-1 text-[10px] leading-snug text-white/50">{activeDistrict || activeRegion || 'No analysis yet'}</p>
+                                <p className="mt-1 text-[11px] leading-snug text-white/50">{activeDistrict || activeRegion || 'No analysis yet'}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                                 {loadingMetrics ? <Loader2 size={12} className="animate-spin text-brand-gold/50" /> : null}
@@ -649,56 +668,62 @@ export default function Dashboard() {
                     </div>
 
                     {isFindingsOpen && (
-                    <div className="px-4 py-4">
+                    <div className="px-5 py-5">
                         {!hasActiveAnalysis ? (
-                            <p className="text-[11px] leading-relaxed text-white/42">
+                            <p className="text-[12px] leading-relaxed text-white/42">
                                 Select a place and year, then run the analysis to populate this panel.
                             </p>
                         ) : (
                             <>
                                 {metricsError ? (
-                                    <div className="border border-red-500/30 bg-red-500/10 px-3 py-2 text-[9px] text-red-200/76">
+                                    <div className="border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-[10px] text-red-200/76">
                                         <div className="flex items-start gap-2">
-                                            <AlertTriangle size={11} className="mt-0.5 shrink-0 text-red-300" />
+                                            <AlertTriangle size={12} className="mt-0.5 shrink-0 text-red-300" />
                                             <span>{metricsError}</span>
                                         </div>
                                     </div>
                                 ) : null}
 
-                                <p className="font-display text-[1.1rem] leading-snug text-[#f3efe4]">{takeaway}</p>
+                                <p className="font-display text-[1.2rem] leading-snug text-[#f3efe4]">{takeaway}</p>
 
-                                <div className="mt-4">
+                                <div className="mt-5">
                                     <MetricStrip label="Forest carbon stock" value={stockFmt.value} suffix={stockFmt.suffix} delta={stockDelta} icon={TreePine} accentClass="text-[#6f8f63]" />
                                     <MetricStrip label="Mining-driven loss" value={lossFmt.value} suffix={lossFmt.suffix} delta={lossDelta} icon={Pickaxe} accentClass="text-[#d0542c]" />
                                 </div>
 
-                                <div className="mt-4">
+                                <div className="mt-5">
                                     <div className="mb-3 flex items-center justify-between">
-                                        <span className="text-[9px] tracking-[0.12em] text-white/30 uppercase">Trend</span>
-                                        <span className="font-mono text-[9px] text-white/28">{activeYear}</span>
+                                        <span className="text-[10px] tracking-[0.12em] text-white/30 uppercase">Trend</span>
+                                        <span className="font-mono text-[10px] text-white/28">{activeYear}</span>
                                     </div>
                                     <LossChart data={metrics.trend} loading={loadingMetrics} />
                                 </div>
 
-                                <div className="mt-4">
-                                    <div className="mb-2 flex items-center gap-2 text-white/36">
-                                        <Database size={10} />
+                                <div className="mt-5">
+                                    <div className="mb-2.5 flex items-center gap-2 text-white/36">
+                                        <Database size={11} />
                                         <span className="text-[9px] tracking-[0.12em] uppercase">Sources</span>
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="space-y-2.5">
                                         {visibleLegendLayers.filter(id => LAYER_INFO[id]).map(layerId => {
                                             const info = LAYER_INFO[layerId];
                                             return (
-                                                <div key={layerId} className="grid grid-cols-[10px,minmax(0,1fr)] gap-2">
+                                                <div key={layerId} className="grid grid-cols-[10px,minmax(0,1fr)] gap-2.5">
                                                     <div className={`mt-1.5 h-2 w-2 rounded-full ${info.dot}`} />
                                                     <div className="min-w-0">
-                                                        <p className="text-[10px] font-medium text-white/68">{info.name}</p>
-                                                        <p className="mt-0.5 text-[9px] leading-snug text-white/28">{info.source}</p>
+                                                        <p className="text-[11px] font-medium text-white/68">{info.name}</p>
+                                                        <p className="mt-0.5 text-[10px] leading-snug text-white/28">{info.source}</p>
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
+                                </div>
+
+                                <div className="mt-4 border-t border-white/8 pt-3">
+                                    <p className="text-[10px] leading-relaxed text-white/38">
+                                        Model-derived estimates only. Verify against ground truth before operational use.
+                                    </p>
                                 </div>
                             </>
                         )}
@@ -781,6 +806,7 @@ export default function Dashboard() {
                 </button>
             </div>
 
+            <DisclaimerModal isOpen={isDisclaimerOpen} onAccept={handleDisclaimerAccept} />
             <AboutModal isOpen={isAboutOpen} onClose={closeAboutModal} onOpenTour={openTourFromAbout} canOpenTour={!isMobile} />
             <RequestDataModal isOpen={isRequestOpen} onClose={() => setIsRequestOpen(false)} />
             <TourGuide autoStart={tourTrigger} />

@@ -76,9 +76,7 @@ export async function POST(request) {
         const districtBoundaryImg = ee.Image().paint(districtFC, 0, 2);
 
         // District GeoJSON for hover tooltips — simplified to 500m to keep response small
-        const hoverFC = district
-            ? ee.FeatureCollection(config.MINING_FC).filter(ee.Filter.eq('DISTRICTS', district))
-            : ee.FeatureCollection(config.MINING_FC).filter(ee.Filter.eq('REGIONS', region));
+        const hoverFC = ee.FeatureCollection(config.MINING_FC).filter(ee.Filter.eq('REGIONS', region));
         const simplifiedHoverFC = hoverFC.map(f => f.simplify(500));
 
         const [carbonMapId, miningMapId, regionMapId, districtMapId, bounds, hoverGeoJSON] = await Promise.all([

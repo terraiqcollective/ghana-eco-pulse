@@ -474,7 +474,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-4 px-5 py-3.5">
                         <BrandMark className="h-10 w-10 shrink-0" />
                         <div className="min-w-0">
-                            <h1 className="font-display text-[1.4rem] leading-none text-[#f3efe4]">EcoPulse</h1>
+                            <h1 className="font-display text-[1.4rem] leading-none text-[#f3efe4]">Eco<span className="text-brand-gold">Pulse</span></h1>
                             <p className="mt-1 text-[9px] tracking-[0.14em] text-white/34 uppercase">Forest Carbon Monitoring</p>
                         </div>
                     </div>
@@ -668,7 +668,7 @@ export default function Dashboard() {
                     </div>
 
                     {isFindingsOpen && (
-                    <div className="overflow-y-auto px-5 py-5">
+                    <div className="custom-scrollbar overflow-y-auto px-5 py-5">
                         {!hasActiveAnalysis ? (
                             <p className="text-[12px] leading-relaxed text-white/42">
                                 Select a place and year, then run the analysis to populate this panel.

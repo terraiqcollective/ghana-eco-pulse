@@ -23,8 +23,6 @@ export function RequestDataModal({ isOpen = false, onClose }) {
         }
     }, [isOpen]);
 
-    if (!isOpen) return null;
-
     const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
     const handleSubmit = async (e) => {
@@ -46,11 +44,11 @@ export function RequestDataModal({ isOpen = false, onClose }) {
     const labelClass = "mb-1.5 block text-[10px] font-semibold tracking-[0.08em] text-white/46 uppercase";
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/62 backdrop-blur-[4px]" onClick={onClose} />
+        <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isOpen ? '' : 'pointer-events-none'}`}>
+            <div className={`absolute inset-0 bg-black/62 backdrop-blur-[4px] transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} />
 
             <div
-                className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl"
+                className={`relative z-10 w-full max-w-md overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl transition-all duration-200 ease-out ${isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-[0.97]'}`}
                 style={{ background: 'linear-gradient(180deg,rgba(4,5,7,0.92)0%,rgba(2,3,5,0.96)100%)', border: '1px solid rgba(243,239,228,0.08)' }}
             >
                 {/* Header */}

@@ -12,14 +12,14 @@ export function AboutModal({ isOpen = false, onClose, onOpenTour, canOpenTour = 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/62 backdrop-blur-[4px]" onClick={onClose} />
+        <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isOpen ? '' : 'pointer-events-none'}`}>
+            <div className={`absolute inset-0 bg-black/62 backdrop-blur-[4px] transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} />
 
-            <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl" style={{ background: 'linear-gradient(180deg,rgba(4,5,7,0.92)0%,rgba(2,3,5,0.96)100%)', border: '1px solid rgba(243,239,228,0.08)' }}>
-
+            <div
+                className={`relative z-10 w-full max-w-lg overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl transition-all duration-200 ease-out ${isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-[0.97]'}`}
+                style={{ background: 'linear-gradient(180deg,rgba(4,5,7,0.92)0%,rgba(2,3,5,0.96)100%)', border: '1px solid rgba(243,239,228,0.08)' }}
+            >
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 pb-4 pt-5">
                     <div className="flex items-center gap-3">

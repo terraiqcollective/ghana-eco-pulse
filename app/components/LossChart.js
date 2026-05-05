@@ -20,7 +20,7 @@ const CustomTooltip = ({ active, payload, label }) => {
                 <div key={entry.dataKey} className="mb-0.5 flex items-center gap-2">
                     <div className="h-2 w-2 shrink-0 rounded-full" style={{ background: entry.color }} />
                     <span className="text-[10px] font-medium text-white/60">
-                        {entry.dataKey === 'stock' ? 'Stock' : 'Loss'}:
+                        {entry.dataKey === 'stock' ? 'Carbon stock' : 'Carbon loss'}:
                     </span>
                     <span className="font-mono text-[10px] text-white">
                         {fmt(entry.value)}
@@ -46,9 +46,9 @@ export const LossChart = ({ data, loading }) => {
 
     if (chartData.length === 0) {
         return (
-            <div className="flex h-36 w-full items-center justify-center text-[10px] font-medium text-white/30">
-                No trend data available
-            </div>
+                <div className="flex h-36 w-full items-center justify-center text-[10px] font-medium text-white/30">
+                    No time-series data available
+                </div>
         );
     }
 
@@ -57,11 +57,11 @@ export const LossChart = ({ data, loading }) => {
             <div className="mb-3 flex items-center gap-4 px-1">
                 <div className="flex items-center gap-1.5">
                     <div className="h-0.5 w-3 bg-[#6f8f63]" />
-                    <span className="text-[9px] font-medium text-[#6f8f63]">Stock</span>
+                    <span className="text-[9px] font-medium text-[#6f8f63]">Carbon stock</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="h-0.5 w-3 bg-brand-gold" />
-                    <span className="text-[9px] font-medium text-brand-gold/75">Loss</span>
+                    <span className="text-[9px] font-medium text-brand-gold/75">Carbon loss</span>
                 </div>
             </div>
 

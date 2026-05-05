@@ -11,12 +11,14 @@ export function DisclaimerModal({ isOpen = false, onAccept }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onAccept]);
 
+    if (!isOpen) return null;
+
     return (
-        <div className={`fixed inset-0 z-[300] flex items-center justify-center p-4 ${isOpen ? '' : 'pointer-events-none'}`}>
-            <div className={`absolute inset-0 bg-black/72 backdrop-blur-[6px] transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0'}`} />
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/72 backdrop-blur-[6px] transition-opacity duration-200 opacity-100" />
 
             <div
-                className={`relative z-10 w-full max-w-lg overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.72)] transition-all duration-200 ease-out ${isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-[0.97]'}`}
+                className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.72)] transition-all duration-200 ease-out opacity-100 translate-y-0 scale-100"
                 style={{ background: 'linear-gradient(180deg,rgba(4,5,7,0.96)0%,rgba(2,3,5,0.99)100%)', border: '1px solid rgba(243,239,228,0.08)' }}
             >
                 {/* Header */}
@@ -33,12 +35,12 @@ export function DisclaimerModal({ isOpen = false, onAccept }) {
                 {/* Body */}
                 <div className="px-6 py-6 space-y-4">
                     <p className="text-[12px] leading-relaxed text-white/72">
-                        The data presented in EcoPulse Ghana is derived from satellite imagery and machine learning classification models. All values, including carbon stock estimates and mining loss figures, are approximations and carry inherent uncertainty.
+                        EcoPulse Ghana is based on satellite imagery and modelled estimates. Forest carbon stock and carbon loss values should be treated as approximations.
                     </p>
                     <div className="space-y-2">
-                        <p className="text-[11px] leading-relaxed text-white/48"><span className="mr-2 font-semibold text-brand-gold/50">1.</span>Results may contain misclassifications, cloud artefacts, and temporal gaps introduced during image processing.</p>
-                        <p className="text-[11px] leading-relaxed text-white/48"><span className="mr-2 font-semibold text-brand-gold/50">2.</span>This portal is intended for research, exploration, and planning purposes only. Data should not be used as the sole basis for regulatory, legal, or financial decisions.</p>
-                        <p className="text-[11px] leading-relaxed text-white/48"><span className="mr-2 font-semibold text-brand-gold/50">3.</span>Field verification is strongly recommended before drawing operational conclusions from any figures shown here.</p>
+                        <p className="text-[11px] leading-relaxed text-white/48"><span className="mr-2 font-semibold text-brand-gold/50">1.</span>Results may contain misclassification, cloud artefacts, and temporal gaps introduced during image processing.</p>
+                        <p className="text-[11px] leading-relaxed text-white/48"><span className="mr-2 font-semibold text-brand-gold/50">2.</span>This portal is intended for research, screening, and planning. It should not be used as the sole basis for regulatory, legal, or financial decisions.</p>
+                        <p className="text-[11px] leading-relaxed text-white/48"><span className="mr-2 font-semibold text-brand-gold/50">3.</span>Field verification remains essential before drawing operational conclusions from the figures shown here.</p>
                     </div>
                 </div>
 

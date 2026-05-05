@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import {
     AlertTriangle,
@@ -44,33 +44,48 @@ const ANALYSIS_SCOPES = {
 };
 
 const LAYER_INFO = {
-    carbon: { name: 'Carbon stock', source: 'GEDI mosaics and Google Satellite Embeddings', dot: 'bg-emerald-500' },
-    mining: { name: 'Mining loss', source: 'CERSGIS', dot: 'bg-red-500' },
+    carbon: {
+        name: 'Forest carbon stock',
+        source: 'GEDI mosaics and Google Satellite Embeddings',
+        dot: 'bg-emerald-500',
+        gradient: 'linear-gradient(90deg,#1b1f1d 0%,#1f4d46 24%,#4f7f3e 52%,#8fbf5a 78%,#d7e87a 100%)',
+        lowLabel: 'Low stock',
+        highLabel: 'High stock',
+    },
+    mining: {
+        name: 'Forest carbon loss',
+        source: 'CERSGIS mining-disturbance analysis',
+        dot: 'bg-red-500',
+        gradient: 'linear-gradient(90deg,#220505 0%,#6d0f0f 24%,#b91c1c 52%,#f97316 78%,#ffd166 100%)',
+        lowLabel: 'Low loss',
+        highLabel: 'High loss',
+    },
     region: { name: 'Region boundary', source: 'Ghana Statistical Service (GSS)', dot: 'bg-white/50' },
     district: { name: 'District boundary', source: 'Ghana Statistical Service (GSS)', dot: 'bg-yellow-400' },
 };
 
 function computeTakeaway(metrics, selectedYear, selectedRegion, selectedDistrict) {
     const { carbonStock, carbonLoss, prevCarbonLoss } = metrics;
+    const referenceYear = (selectedYear || 2024) - 1;
 
     if (prevCarbonLoss > 0 && carbonLoss > 0) {
         const change = ((carbonLoss - prevCarbonLoss) / prevCarbonLoss) * 100;
         if (Math.abs(change) > 3) {
             return change > 0
-                ? `Mining-related loss increased by ${change.toFixed(0)}% relative to ${(selectedYear || 2024) - 1}.`
-                : `Mining-related loss decreased by ${Math.abs(change).toFixed(0)}% relative to ${(selectedYear || 2024) - 1}.`;
+                ? `Estimated carbon loss increased by ${change.toFixed(0)}% relative to ${referenceYear}.`
+                : `Estimated carbon loss decreased by ${Math.abs(change).toFixed(0)}% relative to ${referenceYear}.`;
         }
-        return `Mining-related loss was broadly unchanged from ${(selectedYear || 2024) - 1}.`;
+        return `Estimated carbon loss remained broadly stable relative to ${referenceYear}.`;
     }
 
     if (carbonStock > 0 && carbonLoss > 0) {
         const ratio = (carbonLoss / carbonStock) * 100;
-        return `Estimated loss equals ${ratio.toFixed(ratio > 1.5 ? 1 : 2)}% of total forest carbon stock.`;
+        return `Estimated carbon loss represents ${ratio.toFixed(ratio > 1.5 ? 1 : 2)}% of total forest carbon stock.`;
     }
 
-    if (!selectedRegion) return 'Choose a region to begin.';
-    if (!selectedDistrict) return `Showing totals for all districts in ${selectedRegion}.`;
-    return `Showing district-level results for ${selectedDistrict} in ${selectedYear}.`;
+    if (!selectedRegion) return 'Select an area and year to begin analysis.';
+    if (!selectedDistrict) return `Regional estimates for ${selectedRegion}, ${selectedYear}.`;
+    return `District estimates for ${selectedDistrict}, ${selectedYear}.`;
 }
 
 const MapComponent = dynamic(() => import('./Map'), {
@@ -79,7 +94,7 @@ const MapComponent = dynamic(() => import('./Map'), {
         <div className="flex h-full w-full items-center justify-center bg-brand-deep text-brand-gold">
             <div className="flex items-center gap-3">
                 <Loader2 size={18} className="animate-spin" />
-                <span className="text-[11px] font-medium tracking-[0.04em]">Loading layers</span>
+                <span className="text-[11px] font-medium tracking-[0.04em]">Loading map data</span>
             </div>
         </div>
     ),
@@ -111,30 +126,46 @@ function FloatingToggle({ label, active, onToggle, icon: Icon, iconColor }) {
     );
 }
 
-function MetricStrip({ label, value, suffix, delta, icon: Icon, accentClass }) {
+function PrimaryMetric({ label, value, suffix, icon: Icon, accentClass, caption }) {
     return (
-        <div className="grid grid-cols-[minmax(0,1fr),auto] gap-3 py-3.5">
+        <div className="rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-4">
             <div className="min-w-0">
                 <div className="flex items-center gap-2 text-white/42">
                     <Icon size={13} className={accentClass} />
                     <span className="text-[11px] font-medium">{label}</span>
                 </div>
-                <div className="mt-2 flex items-end gap-1.5">
-                    <span className="font-display text-[2rem] leading-none text-[#f3efe4]">{value}</span>
-                    {suffix ? <span className="font-display pb-1 text-[1.1rem] leading-none text-white/54">{suffix}</span> : null}
+                <div className="mt-3 flex items-end gap-1.5">
+                    <span className="font-display text-[2.35rem] leading-none text-[#f3efe4]">{value}</span>
+                    {suffix ? <span className="font-display pb-1 text-[1.15rem] leading-none text-white/54">{suffix}</span> : null}
                 </div>
-                <span className="mt-1 block text-[10px] text-white/28">tonnes C</span>
+                <div className="mt-2 flex items-center justify-between gap-3 text-[10px]">
+                    <span className="text-white/28">tonnes C</span>
+                    <span className="text-white/34">{caption}</span>
+                </div>
             </div>
-            <div className="flex min-w-[68px] items-end justify-end">
-                <span className={`font-mono text-[10px] ${delta === null ? 'text-white/26' : delta >= 0 ? 'text-[#9a5d3f]' : 'text-[#6f8f63]'}`}>
-                    {delta === null ? '-' : `${delta >= 0 ? '+' : '-'}${Math.abs(delta).toFixed(1)}%`}
-                </span>
+        </div>
+    );
+}
+
+function SecondaryMetric({ label, value, helper, icon: Icon, accentClass, valueClassName = 'text-[#f3efe4]' }) {
+    return (
+        <div className="rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-3.5">
+            <div className="flex items-center gap-2 text-white/42">
+                <Icon size={13} className={accentClass} />
+                <span className="text-[11px] font-medium">{label}</span>
+            </div>
+            <div className={`mt-3 font-display text-[1.65rem] leading-none ${valueClassName}`}>
+                {value}
+            </div>
+            <div className="mt-2 text-[10px] leading-snug text-white/30">
+                {helper}
             </div>
         </div>
     );
 }
 
 export default function Dashboard() {
+    const pendingUrlDistrictRef = useRef('');
     const [isMobile, setIsMobile] = useState(false);
     const [mobilePanel, setMobilePanel] = useState(null);
     const [isSetupOpen, setIsSetupOpen] = useState(true);
@@ -199,6 +230,7 @@ export default function Dashboard() {
     };
 
     const resetDashboard = useCallback(() => {
+        pendingUrlDistrictRef.current = '';
         setDraftRegion('');
         setDraftDistrict('');
         setActiveRegion('');
@@ -290,15 +322,6 @@ export default function Dashboard() {
         [metrics, activeYear, activeRegion, activeDistrict]
     );
 
-    const visibleLegendLayers = useMemo(
-        () => selectedLayers.filter(layerId => {
-            if (layerId === 'region') return !!activeRegion;
-            if (layerId === 'district') return !!activeDistrict;
-            return !!activeYear;
-        }),
-        [selectedLayers, activeYear, activeRegion, activeDistrict]
-    );
-
     const runAnalysis = useCallback(() => {
         if (!canRunAnalysis) return;
         setActiveYear(draftYear);
@@ -331,13 +354,15 @@ export default function Dashboard() {
                 if (urlYear && urlRegion
                     && (data.years || []).includes(String(urlYear))
                     && (data.regions || []).includes(urlRegion)) {
+                    const nextScope = urlScope === 'district' ? 'district' : 'region';
                     setDraftYear(urlYear);
                     setDraftRegion(urlRegion);
-                    setDraftDistrict(urlDistrict);
-                    setAnalysisScope(urlScope);
+                    setDraftDistrict('');
+                    setAnalysisScope(nextScope);
                     setActiveYear(urlYear);
                     setActiveRegion(urlRegion);
-                    setActiveDistrict(urlDistrict);
+                    setActiveDistrict('');
+                    pendingUrlDistrictRef.current = nextScope === 'district' ? urlDistrict : '';
                 }
             } catch (err) {
                 if (err.name === 'AbortError') return;
@@ -371,8 +396,23 @@ export default function Dashboard() {
                 if (!response.ok) throw new Error('Failed to load districts');
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
-                setDistricts(data.districts || []);
-                if (analysisScope !== 'district') setDraftDistrict('');
+                const nextDistricts = data.districts || [];
+                setDistricts(nextDistricts);
+
+                if (analysisScope !== 'district') {
+                    setDraftDistrict('');
+                    pendingUrlDistrictRef.current = '';
+                    return;
+                }
+
+                const pendingUrlDistrict = pendingUrlDistrictRef.current;
+                const nextDistrict = pendingUrlDistrict
+                    ? (nextDistricts.includes(pendingUrlDistrict) ? pendingUrlDistrict : '')
+                    : (nextDistricts.includes(draftDistrict) ? draftDistrict : '');
+
+                setDraftDistrict(nextDistrict);
+                if (activeRegion === draftRegion) setActiveDistrict(nextDistrict);
+                pendingUrlDistrictRef.current = '';
             } catch (err) {
                 if (err.name === 'AbortError') return;
                 setDistrictsError(err.message);
@@ -383,7 +423,7 @@ export default function Dashboard() {
         };
         fetchDistricts();
         return () => abortController.abort();
-    }, [draftRegion, analysisScope]);
+    }, [draftRegion, analysisScope, activeRegion, draftDistrict]);
 
     useEffect(() => {
         if (!activeYear || !activeRegion) {
@@ -442,7 +482,7 @@ export default function Dashboard() {
                             <TreePine size={18} className="text-brand-gold" />
                         </div>
                     </div>
-                    <p className="text-sm font-medium tracking-[0.02em] text-white/78">Loading dashboard data</p>
+                    <p className="text-sm font-medium tracking-[0.02em] text-white/78">Loading portal data</p>
                 </div>
             </div>
         );
@@ -452,6 +492,14 @@ export default function Dashboard() {
     const lossFmt = compactValue(metrics.carbonLoss);
     const stockDelta = formatPercent(metrics.prevCarbonStock, metrics.carbonStock);
     const lossDelta = formatPercent(metrics.prevCarbonLoss, metrics.carbonLoss);
+    const comparisonYear = activeYear ? activeYear - 1 : null;
+    const changeValue = lossDelta === null ? 'n/a' : `${lossDelta > 0 ? '+' : ''}${lossDelta.toFixed(1)}%`;
+    const changeHelper = lossDelta === null
+        ? 'Previous-year comparison unavailable'
+        : Math.abs(lossDelta) < 0.05
+            ? `Broadly stable relative to ${comparisonYear}`
+            : `${lossDelta > 0 ? 'Increase' : 'Decrease'} relative to ${comparisonYear}`;
+    const changeTone = lossDelta === null ? 'text-white/52' : lossDelta > 0 ? 'text-[#d0542c]' : 'text-[#7ecb92]';
 
     return (
         <div className="relative h-screen w-screen overflow-hidden bg-brand-deep text-white selection:bg-brand-gold/30">
@@ -498,19 +546,19 @@ export default function Dashboard() {
                         </div>
                     </GlassPanel>
                 ) : null}
-                <div className="flex w-[24rem] items-center gap-2">
-                    <GlassPanel className="pointer-events-auto flex-1 rounded-xl">
-                        <button onClick={() => setTourTrigger(prev => prev + 1)} className="flex h-full w-full items-center justify-center gap-2 px-3 py-3 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
-                            <HelpCircle size={11} /> Help
+                <div className="flex items-center gap-2.5">
+                    <GlassPanel className="pointer-events-auto rounded-xl p-1">
+                        <button onClick={() => setTourTrigger(prev => prev + 1)} className="rounded-lg px-3.5 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                            <span className="flex items-center gap-2"><HelpCircle size={11} /> Help</span>
                         </button>
                     </GlassPanel>
                     <GlassPanel className="pointer-events-auto rounded-xl p-1">
-                        <button onClick={() => setIsAboutOpen(true)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                        <button onClick={() => setIsAboutOpen(true)} className="rounded-lg px-3.5 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
                             <span className="flex items-center gap-2"><Info size={11} /> About</span>
                         </button>
                     </GlassPanel>
                     <GlassPanel className="pointer-events-auto rounded-xl p-1">
-                        <a href="https://github.com/terraiqcollective/ghana-eco-pulse" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                        <a href="https://github.com/terraiqcollective/ghana-eco-pulse" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg px-3.5 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
                             </svg>
@@ -518,7 +566,7 @@ export default function Dashboard() {
                         </a>
                     </GlassPanel>
                     <GlassPanel className="pointer-events-auto rounded-xl p-1">
-                        <button onClick={() => setIsRequestOpen(true)} className="rounded-lg px-3 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
+                        <button onClick={() => setIsRequestOpen(true)} className="rounded-lg px-3.5 py-2 text-[10px] text-white/58 transition-colors hover:bg-white/6 hover:text-white">
                             <span className="flex items-center gap-2"><Send size={11} /> Request Data</span>
                         </button>
                     </GlassPanel>
@@ -634,9 +682,39 @@ export default function Dashboard() {
 
                         <div>
                             <span className="text-[10px] font-bold tracking-[0.14em] text-white/80 uppercase">Legend</span>
-                            <div className="mt-2">
-                                <FloatingToggle label="Carbon stock" active={selectedLayers.includes('carbon')} onToggle={() => toggleLayer('carbon')} icon={TreePine} iconColor="#6f8f63" />
-                                <FloatingToggle label="Mining loss" active={selectedLayers.includes('mining')} onToggle={() => toggleLayer('mining')} icon={Pickaxe} iconColor="#e05252" />
+                            <div className="mt-2 space-y-3">
+                                <div>
+                                    <FloatingToggle label="Forest carbon stock" active={selectedLayers.includes('carbon')} onToggle={() => toggleLayer('carbon')} icon={TreePine} iconColor="#7ecb92" />
+                                    {selectedLayers.includes('carbon') ? (
+                                        <div className="mt-1.5 pl-[26px]">
+                                            <div
+                                                className="h-2.5 w-full rounded-full border border-white/10"
+                                                style={{ background: LAYER_INFO.carbon.gradient }}
+                                            />
+                                            <div className="mt-1 flex items-center justify-between text-[8px] uppercase tracking-[0.08em] text-white/34">
+                                                <span>{LAYER_INFO.carbon.lowLabel}</span>
+                                                <span>{LAYER_INFO.carbon.highLabel}</span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <div>
+                                    <FloatingToggle label="Forest carbon loss" active={selectedLayers.includes('mining')} onToggle={() => toggleLayer('mining')} icon={Pickaxe} iconColor="#e05252" />
+                                    {selectedLayers.includes('mining') ? (
+                                        <div className="mt-1.5 pl-[26px]">
+                                            <div
+                                                className="h-2.5 w-full rounded-full border border-white/10"
+                                                style={{ background: LAYER_INFO.mining.gradient }}
+                                            />
+                                            <div className="mt-1 flex items-center justify-between text-[8px] uppercase tracking-[0.08em] text-white/34">
+                                                <span>{LAYER_INFO.mining.lowLabel}</span>
+                                                <span>{LAYER_INFO.mining.highLabel}</span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+
                                 {hasActiveAnalysis ? <FloatingToggle label="Region boundary" active={selectedLayers.includes('region')} onToggle={() => toggleLayer('region')} icon={Pentagon} iconColor="#c8c8c8" /> : null}
                                 {activeDistrict ? <FloatingToggle label="District boundary" active={selectedLayers.includes('district')} onToggle={() => toggleLayer('district')} icon={Pentagon} iconColor="#d4b27a" /> : null}
                             </div>
@@ -652,7 +730,7 @@ export default function Dashboard() {
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="text-[10px] font-bold tracking-[0.14em] text-white/80 uppercase">Analysis Results</p>
-                                <p className="mt-1 text-[11px] leading-snug text-white/50">{activeDistrict || activeRegion || 'No analysis yet'}</p>
+                                <p className="mt-1 text-[11px] leading-snug text-white/50">{activeDistrict || activeRegion || 'Select an area and year'}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                                 {loadingMetrics ? <Loader2 size={12} className="animate-spin text-brand-gold/50" /> : null}
@@ -671,7 +749,7 @@ export default function Dashboard() {
                     <div className="custom-scrollbar overflow-y-auto px-5 py-5">
                         {!hasActiveAnalysis ? (
                             <p className="text-[12px] leading-relaxed text-white/42">
-                                Select a place and year, then run the analysis to populate this panel.
+                                Run an analysis to view summary metrics and time series.
                             </p>
                         ) : (
                             <>
@@ -686,43 +764,48 @@ export default function Dashboard() {
 
                                 <p className="font-display text-[1.2rem] leading-snug text-[#f3efe4]">{takeaway}</p>
 
-                                <div className="mt-5">
-                                    <MetricStrip label="Forest carbon stock" value={stockFmt.value} suffix={stockFmt.suffix} delta={stockDelta} icon={TreePine} accentClass="text-[#6f8f63]" />
-                                    <MetricStrip label="Mining-driven loss" value={lossFmt.value} suffix={lossFmt.suffix} delta={lossDelta} icon={Pickaxe} accentClass="text-[#d0542c]" />
+                                <div className="mt-5 space-y-3">
+                                    <PrimaryMetric
+                                        label="Forest carbon stock"
+                                        value={stockFmt.value}
+                                        suffix={stockFmt.suffix}
+                                        icon={TreePine}
+                                        accentClass="text-[#7ecb92]"
+                                        caption={stockDelta === null ? 'No prior-year comparison' : `Reference estimate for ${activeDistrict || activeRegion}`}
+                                    />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <SecondaryMetric
+                                            label="Carbon loss"
+                                            value={`${lossFmt.value}${lossFmt.suffix}`}
+                                            helper="Estimated tonnes C"
+                                            icon={Pickaxe}
+                                            accentClass="text-[#d0542c]"
+                                        />
+                                        <SecondaryMetric
+                                            label="Change"
+                                            value={changeValue}
+                                            helper={changeHelper}
+                                            icon={BarChart3}
+                                            accentClass={lossDelta !== null && lossDelta > 0 ? 'text-[#d0542c]' : 'text-[#7ecb92]'}
+                                            valueClassName={changeTone}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] leading-relaxed text-white/34">
+                                        Carbon loss estimates are derived from mapped mining disturbance.
+                                    </p>
                                 </div>
 
                                 <div className="mt-5">
                                     <div className="mb-3 flex items-center justify-between">
-                                        <span className="text-[10px] tracking-[0.12em] text-white/30 uppercase">Trend</span>
+                                        <span className="text-[10px] tracking-[0.12em] text-white/30 uppercase">Time series</span>
                                         <span className="font-mono text-[10px] text-white/28">{activeYear}</span>
                                     </div>
                                     <LossChart data={metrics.trend} loading={loadingMetrics} />
                                 </div>
 
-                                <div className="mt-5">
-                                    <div className="mb-2.5 flex items-center gap-2 text-white/36">
-                                        <Database size={11} />
-                                        <span className="text-[9px] tracking-[0.12em] uppercase">Sources</span>
-                                    </div>
-                                    <div className="space-y-2.5">
-                                        {visibleLegendLayers.filter(id => LAYER_INFO[id]).map(layerId => {
-                                            const info = LAYER_INFO[layerId];
-                                            return (
-                                                <div key={layerId} className="grid grid-cols-[10px,minmax(0,1fr)] gap-2.5">
-                                                    <div className={`mt-1.5 h-2 w-2 rounded-full ${info.dot}`} />
-                                                    <div className="min-w-0">
-                                                        <p className="text-[11px] font-medium text-white/68">{info.name}</p>
-                                                        <p className="mt-0.5 text-[10px] leading-snug text-white/28">{info.source}</p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
                                 <div className="mt-4 border-t border-white/8 pt-3">
                                     <p className="text-[10px] leading-relaxed text-white/38">
-                                        Model-derived estimates only. Verify against ground truth before operational use.
+                                        Results are model-derived estimates and should be interpreted alongside field evidence.
                                     </p>
                                 </div>
                             </>

@@ -4,15 +4,19 @@ import { GlassPanel } from './GlassPanel';
 const ALL_LEGEND_ITEMS = [
     {
         id: 'carbon',
-        swatch: 'bg-emerald-600',
-        label: 'Carbon Stock',
-        desc: 'Forest carbon storage',
+        label: 'Forest Carbon Stock',
+        desc: 'Lower to higher carbon density',
+        gradient: 'linear-gradient(90deg,#1b1f1d 0%,#1f4d46 24%,#4f7f3e 52%,#8fbf5a 78%,#d7e87a 100%)',
+        lowLabel: 'Low stock',
+        highLabel: 'High stock',
     },
     {
         id: 'mining',
-        swatch: 'bg-red-500',
-        label: 'Carbon Loss',
-        desc: 'Mining-driven loss',
+        label: 'Forest Carbon Loss',
+        desc: 'Loss linked to mining disturbance',
+        gradient: 'linear-gradient(90deg,#220505 0%,#6d0f0f 24%,#b91c1c 52%,#f97316 78%,#ffd166 100%)',
+        lowLabel: 'Low loss',
+        highLabel: 'High loss',
     },
     {
         id: 'region',
@@ -58,15 +62,44 @@ export const LegendPanel = ({ isOpen, onClose, activeLayers = [], className = ''
                         </p>
                     ) : (
                         visibleItems.map(item => (
-                            <div key={item.id} className="flex items-center gap-3">
-                                <div className={`h-4 w-4 shrink-0 rounded-sm ${item.swatch}`} />
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-medium leading-none text-white/78">
-                                        {item.label}
-                                    </span>
-                                    <span className="mt-0.5 text-[9px] text-white/38">
-                                        {item.desc}
-                                    </span>
+                            <div key={item.id} className="flex flex-col gap-2">
+                                <div className="flex items-center gap-3">
+                                    {item.gradient ? (
+                                        <div className="w-full min-w-0">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-medium leading-none text-white/78">
+                                                        {item.label}
+                                                    </span>
+                                                    <span className="mt-0.5 text-[9px] text-white/38">
+                                                        {item.desc}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="mt-2">
+                                                <div
+                                                    className="h-2.5 w-full rounded-full border border-white/10"
+                                                    style={{ background: item.gradient }}
+                                                />
+                                                <div className="mt-1 flex items-center justify-between text-[8px] uppercase tracking-[0.08em] text-white/34">
+                                                    <span>{item.lowLabel}</span>
+                                                    <span>{item.highLabel}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className={`h-4 w-4 shrink-0 rounded-sm ${item.swatch}`} />
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-medium leading-none text-white/78">
+                                                    {item.label}
+                                                </span>
+                                                <span className="mt-0.5 text-[9px] text-white/38">
+                                                    {item.desc}
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         ))

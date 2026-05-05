@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { initializeEE, getEE, getConfig } from '@/lib/gee-server';
 
+const CARBON_PALETTE = ['#1b1f1d', '#1f4d46', '#4f7f3e', '#8fbf5a', '#d7e87a'];
+const LOSS_PALETTE = ['#220505', '#6d0f0f', '#b91c1c', '#f97316', '#ffd166'];
+
 export async function POST(request) {
     try {
         await initializeEE();
@@ -32,8 +35,8 @@ export async function POST(request) {
         if (!region) {
             const pilotArea = ee.FeatureCollection(config.PILOT_AREA);
             const [carbonMapId, miningMapId, nationalBounds] = await Promise.all([
-                new Promise((res, rej) => carbonImg.getMapId({ min: 1, max: 8, palette: ['black', 'green'] }, (id, err) => err ? rej(err) : res(id))),
-                new Promise((res, rej) => miningImg.getMapId({ min: 0, max: 7, palette: ['black', 'red'] }, (id, err) => err ? rej(err) : res(id))),
+                new Promise((res, rej) => carbonImg.getMapId({ min: 1, max: 8, palette: CARBON_PALETTE }, (id, err) => err ? rej(err) : res(id))),
+                new Promise((res, rej) => miningImg.getMapId({ min: 0, max: 7, palette: LOSS_PALETTE }, (id, err) => err ? rej(err) : res(id))),
                 new Promise((res, rej) => pilotArea.geometry().bounds().getInfo((geo, err) => {
                     if (err) return rej(err);
                     if (!geo || !geo.coordinates) return res(null);
@@ -80,8 +83,8 @@ export async function POST(request) {
         const simplifiedHoverFC = hoverFC.map(f => f.simplify(500));
 
         const [carbonMapId, miningMapId, regionMapId, districtMapId, bounds, hoverGeoJSON] = await Promise.all([
-            new Promise((res, rej) => carbonImg.getMapId({ min: 1, max: 8, palette: ['black', 'green'] }, (id, err) => err ? rej(err) : res(id))),
-            new Promise((res, rej) => miningImg.getMapId({ min: 0, max: 7, palette: ['black', 'red'] }, (id, err) => err ? rej(err) : res(id))),
+            new Promise((res, rej) => carbonImg.getMapId({ min: 1, max: 8, palette: CARBON_PALETTE }, (id, err) => err ? rej(err) : res(id))),
+            new Promise((res, rej) => miningImg.getMapId({ min: 0, max: 7, palette: LOSS_PALETTE }, (id, err) => err ? rej(err) : res(id))),
             new Promise((res, rej) => regionBoundaryImg.getMapId({ palette: 'white' }, (id, err) => err ? rej(err) : res(id))),
             new Promise((res, rej) => districtBoundaryImg.getMapId({ palette: 'yellow' }, (id, err) => err ? rej(err) : res(id))),
             new Promise((res, rej) => boundsGeometry.bounds().getInfo((geo, err) => {

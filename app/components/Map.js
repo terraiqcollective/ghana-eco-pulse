@@ -190,7 +190,7 @@ export default function MapComponent({
                             </svg>
                         </div>
                     </div>
-                    <p className="mt-4 text-[10px] font-semibold tracking-wider text-brand-gold/60">Updating map layers...</p>
+                    <p className="mt-4 text-[10px] font-semibold tracking-wider text-brand-gold/60">Refreshing map layers...</p>
                 </div>
             )}
             <MapContainer
@@ -203,10 +203,10 @@ export default function MapComponent({
                 <BasemapLayer type={basemap} />
 
                 {layers.carbon && activeLayers.includes('carbon') && fetchedFilters.year === year && (
-                    <TileLayer url={layers.carbon} opacity={0.7} zIndex={10} />
+                    <TileLayer url={layers.carbon} opacity={0.82} zIndex={10} />
                 )}
                 {layers.mining && activeLayers.includes('mining') && fetchedFilters.year === year && (
-                    <TileLayer url={layers.mining} zIndex={20} />
+                    <TileLayer url={layers.mining} opacity={0.92} zIndex={20} />
                 )}
                 {layers.region && activeLayers.includes('region') && fetchedFilters.region === region && (
                     <TileLayer url={layers.region} zIndex={30} />

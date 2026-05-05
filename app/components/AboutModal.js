@@ -12,12 +12,14 @@ export function AboutModal({ isOpen = false, onClose, onOpenTour, canOpenTour = 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
 
+    if (!isOpen) return null;
+
     return (
-        <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${isOpen ? '' : 'pointer-events-none'}`}>
-            <div className={`absolute inset-0 bg-black/62 backdrop-blur-[4px] transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} />
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/62 backdrop-blur-[4px] transition-opacity duration-200 opacity-100" onClick={onClose} />
 
             <div
-                className={`relative z-10 w-full max-w-lg overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl transition-all duration-200 ease-out ${isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-[0.97]'}`}
+                className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl shadow-[0_32px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl transition-all duration-200 ease-out opacity-100 translate-y-0 scale-100"
                 style={{ background: 'linear-gradient(180deg,rgba(4,5,7,0.92)0%,rgba(2,3,5,0.96)100%)', border: '1px solid rgba(243,239,228,0.08)' }}
             >
                 {/* Header */}
@@ -39,22 +41,40 @@ export function AboutModal({ isOpen = false, onClose, onOpenTour, canOpenTour = 
                 {/* Body */}
                 <div className="px-5 py-5 space-y-4">
                     <p className="text-[12px] leading-relaxed text-white/72">
-                        Welcome to EcoPulse Ghana. This portal tracks forest carbon stock and mining-driven land loss across the study area, using satellite imagery to show how vegetation cover and disturbance have shifted year by year.
+                        EcoPulse Ghana maps forest carbon stock and estimated carbon loss associated with mining disturbance across the study area.
                     </p>
 
                     <div className="space-y-2.5 border-t border-white/6 pt-4">
                         <p className="text-[9px] font-bold tracking-[0.12em] text-white/30 uppercase mb-3">How to use</p>
                         <div className="flex items-start gap-3">
                             <ScanSearch size={13} className="mt-0.5 shrink-0 text-brand-gold/70" />
-                            <p className="text-[11px] leading-relaxed text-white/52">Pick a region or district and a year in the Setup panel, then click <span className="text-white/72 font-medium">Run Analysis</span> to load results and map layers.</p>
+                            <p className="text-[11px] leading-relaxed text-white/52">Select a region or district, choose a year, then run the analysis.</p>
                         </div>
                         <div className="flex items-start gap-3">
                             <TreePine size={13} className="mt-0.5 shrink-0 text-brand-gold/70" />
-                            <p className="text-[11px] leading-relaxed text-white/52">Toggle carbon and mining layers on the map. Hover over a district to see its name, or click it to zoom in.</p>
+                            <p className="text-[11px] leading-relaxed text-white/52">Toggle the carbon stock and carbon loss layers. Hover over a district to see its name, or click to zoom in.</p>
                         </div>
                         <div className="flex items-start gap-3">
                             <Database size={13} className="mt-0.5 shrink-0 text-brand-gold/70" />
-                            <p className="text-[11px] leading-relaxed text-white/52">All figures are satellite-derived estimates intended for research and planning use.</p>
+                            <p className="text-[11px] leading-relaxed text-white/52">All values are estimates intended for planning, screening, and research.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2.5 border-t border-white/6 pt-4">
+                        <p className="text-[9px] font-bold tracking-[0.12em] text-white/30 uppercase mb-3">Data sources</p>
+                        <div className="space-y-2">
+                            <div>
+                                <p className="text-[11px] font-medium text-white/68">Forest carbon stock</p>
+                                <p className="mt-0.5 text-[11px] leading-relaxed text-white/48">Derived from GEDI mosaics and Google Satellite Embeddings.</p>
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-medium text-white/68">Forest carbon loss</p>
+                                <p className="mt-0.5 text-[11px] leading-relaxed text-white/48">Estimated from CERSGIS mining-disturbance analysis layers.</p>
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-medium text-white/68">Boundaries</p>
+                                <p className="mt-0.5 text-[11px] leading-relaxed text-white/48">Region and district boundaries from Ghana Statistical Service (GSS).</p>
+                            </div>
                         </div>
                     </div>
                 </div>

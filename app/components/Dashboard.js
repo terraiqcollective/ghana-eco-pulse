@@ -200,6 +200,8 @@ export default function Dashboard() {
     const [zoomCommand, setZoomCommand] = useState(null);
     const [mapCommand, setMapCommand] = useState(null);
     const [basemap, setBasemap] = useState('dark');
+    const [carbonOpacity, setCarbonOpacity] = useState(1);
+    const [miningOpacity, setMiningOpacity] = useState(1);
     const [showBasemaps, setShowBasemaps] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [shareCopied, setShareCopied] = useState(false);
@@ -512,6 +514,8 @@ export default function Dashboard() {
                     zoomCommand={zoomCommand}
                     mapCommand={mapCommand}
                     basemap={basemap}
+                    carbonOpacity={carbonOpacity}
+                    miningOpacity={miningOpacity}
                 />
             </div>
 
@@ -687,6 +691,17 @@ export default function Dashboard() {
                                     <FloatingToggle label="Forest carbon stock" active={selectedLayers.includes('carbon')} onToggle={() => toggleLayer('carbon')} icon={TreePine} iconColor="#7ecb92" />
                                     {selectedLayers.includes('carbon') ? (
                                         <div className="mt-1.5 pl-[26px]">
+                                            <div className="mb-2 flex items-center gap-2">
+                                                <input
+                                                    type="range"
+                                                    min={10}
+                                                    max={100}
+                                                    value={Math.round(carbonOpacity * 100)}
+                                                    onChange={(e) => setCarbonOpacity(parseInt(e.target.value) / 100)}
+                                                    className="opacity-slider flex-1"
+                                                />
+                                                <span className="w-7 shrink-0 text-right font-mono text-[8px] text-white/34">{Math.round(carbonOpacity * 100)}%</span>
+                                            </div>
                                             <div
                                                 className="h-2.5 w-full rounded-full border border-white/10"
                                                 style={{ background: LAYER_INFO.carbon.gradient }}
@@ -703,6 +718,17 @@ export default function Dashboard() {
                                     <FloatingToggle label="Forest carbon loss" active={selectedLayers.includes('mining')} onToggle={() => toggleLayer('mining')} icon={Pickaxe} iconColor="#e05252" />
                                     {selectedLayers.includes('mining') ? (
                                         <div className="mt-1.5 pl-[26px]">
+                                            <div className="mb-2 flex items-center gap-2">
+                                                <input
+                                                    type="range"
+                                                    min={10}
+                                                    max={100}
+                                                    value={Math.round(miningOpacity * 100)}
+                                                    onChange={(e) => setMiningOpacity(parseInt(e.target.value) / 100)}
+                                                    className="opacity-slider flex-1"
+                                                />
+                                                <span className="w-7 shrink-0 text-right font-mono text-[8px] text-white/34">{Math.round(miningOpacity * 100)}%</span>
+                                            </div>
                                             <div
                                                 className="h-2.5 w-full rounded-full border border-white/10"
                                                 style={{ background: LAYER_INFO.mining.gradient }}

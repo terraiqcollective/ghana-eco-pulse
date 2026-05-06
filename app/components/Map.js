@@ -101,6 +101,8 @@ export default function MapComponent({
     zoomCommand,
     mapCommand,
     basemap = 'dark',
+    carbonOpacity = 1,
+    miningOpacity = 1,
 }) {
     const [layers, setLayers] = useState({ carbon: null, mining: null, region: null, district: null });
     const [prevLayers, setPrevLayers] = useState(null);
@@ -203,10 +205,10 @@ export default function MapComponent({
                 <BasemapLayer type={basemap} />
 
                 {layers.carbon && activeLayers.includes('carbon') && fetchedFilters.year === year && (
-                    <TileLayer url={layers.carbon} opacity={0.82} zIndex={10} />
+                    <TileLayer url={layers.carbon} opacity={carbonOpacity} zIndex={10} />
                 )}
                 {layers.mining && activeLayers.includes('mining') && fetchedFilters.year === year && (
-                    <TileLayer url={layers.mining} opacity={0.92} zIndex={20} />
+                    <TileLayer url={layers.mining} opacity={miningOpacity} zIndex={20} />
                 )}
                 {layers.region && activeLayers.includes('region') && fetchedFilters.region === region && (
                     <TileLayer url={layers.region} zIndex={30} />

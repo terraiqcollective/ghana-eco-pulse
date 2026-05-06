@@ -35,7 +35,7 @@ export async function POST(request) {
         if (!region) {
             const pilotArea = ee.FeatureCollection(config.PILOT_AREA);
             const [carbonMapId, miningMapId, nationalBounds] = await Promise.all([
-                new Promise((res, rej) => carbonImg.getMapId({ min: 1, max: 8, palette: CARBON_PALETTE }, (id, err) => err ? rej(err) : res(id))),
+                new Promise((res, rej) => carbonImg.getMapId({ min: 0, max: 8, palette: CARBON_PALETTE }, (id, err) => err ? rej(err) : res(id))),
                 new Promise((res, rej) => miningImg.getMapId({ min: 0, max: 7, palette: LOSS_PALETTE }, (id, err) => err ? rej(err) : res(id))),
                 new Promise((res, rej) => pilotArea.geometry().bounds().getInfo((geo, err) => {
                     if (err) return rej(err);
@@ -83,7 +83,7 @@ export async function POST(request) {
         const simplifiedHoverFC = hoverFC.map(f => f.simplify(500));
 
         const [carbonMapId, miningMapId, regionMapId, districtMapId, bounds, hoverGeoJSON] = await Promise.all([
-            new Promise((res, rej) => carbonImg.getMapId({ min: 1, max: 8, palette: CARBON_PALETTE }, (id, err) => err ? rej(err) : res(id))),
+            new Promise((res, rej) => carbonImg.getMapId({ min: 0, max: 8, palette: CARBON_PALETTE }, (id, err) => err ? rej(err) : res(id))),
             new Promise((res, rej) => miningImg.getMapId({ min: 0, max: 7, palette: LOSS_PALETTE }, (id, err) => err ? rej(err) : res(id))),
             new Promise((res, rej) => regionBoundaryImg.getMapId({ palette: 'white' }, (id, err) => err ? rej(err) : res(id))),
             new Promise((res, rej) => districtBoundaryImg.getMapId({ palette: 'yellow' }, (id, err) => err ? rej(err) : res(id))),

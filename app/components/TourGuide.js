@@ -20,7 +20,7 @@ const STEPS = [
     },
     {
         target: 'tour-findings-panel',
-        title: 'Findings panel',
+        title: 'Analysis results panel',
         body: 'This panel summarizes the selected area and shows the trend over time.',
         position: 'left',
     },

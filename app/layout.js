@@ -1,31 +1,34 @@
-import { Fraunces, Inter_Tight, JetBrains_Mono } from "next/font/google";
+import { Roboto_Slab, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const interTight = Inter_Tight({
+const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-ui",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
 });
 
-const fraunces = Fraunces({
+const robotoSlab = Roboto_Slab({
   variable: "--font-display",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const ibmPlexMono = IBM_Plex_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata = {
   title: "EcoPulse Ghana | Forest Carbon Monitoring",
-    description: "Portal for mapping forest carbon stock and estimated carbon loss associated with mining disturbance across Ghana.",
+  description: "Satellite-derived forest carbon and mining loss monitoring across Ghana.",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${interTight.variable} ${fraunces.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${ibmPlexSans.variable} ${robotoSlab.variable} ${ibmPlexMono.variable} antialiased`}
         suppressHydrationWarning
       >
         {children}

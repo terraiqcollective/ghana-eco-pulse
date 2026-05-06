@@ -76,7 +76,7 @@ export const LossChart = ({ data, loading }) => {
                                 <stop offset="5%" stopColor="#6f8f63" stopOpacity={0.22} />
                                 <stop offset="95%" stopColor="#6f8f63" stopOpacity={0} />
                             </linearGradient>
-                            <linearGradient id="colorLoss" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id="colorwhat fon " x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#b88a3b" stopOpacity={0.28} />
                                 <stop offset="95%" stopColor="#b88a3b" stopOpacity={0} />
                             </linearGradient>

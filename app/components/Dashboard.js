@@ -797,7 +797,7 @@ export default function Dashboard() {
                                         suffix={stockFmt.suffix}
                                         icon={TreePine}
                                         accentClass="text-[#7ecb92]"
-                                        caption={stockDelta === null ? 'No prior-year comparison' : `Reference estimate for ${activeDistrict || activeRegion}`}
+                                        // caption={stockDelta === null ? 'No prior-year comparison' : `Reference estimate for ${activeDistrict || activeRegion}`}
                                     />
                                     <div className="grid grid-cols-2 gap-3">
                                         <SecondaryMetric

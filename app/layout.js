@@ -1,4 +1,5 @@
 import { Roboto_Slab, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -32,6 +33,7 @@ export default function RootLayout({ children }) {
         suppressHydrationWarning
       >
         {children}
+        <Analytics />
       </body>
     </html>
   );
